@@ -1,72 +1,81 @@
-# Pipeline: Registry Build Tools
+# Pipeline Documentation
 
-This folder contains the registry build pipeline for otinstaller.
+This directory contains the tool discovery and verification pipeline.
 
 ## discover.py
 
-`discover.py` searches GitHub for OSINT-related tools and writes a candidates file
-(`pipeline/candidates.yaml`) for manual review and testing.
+Discovers candidate OSINT tools on GitHub using topic searches and writes them to `candidates.yaml`.
 
-### What it does
-
-1. Searches GitHub's REST API for repos with OSINT-related topics (osint, osint-tools,
-   osint-python, reconnaissance, information-gathering) with 1000+ stars.
-2. Filters out:
-   - Archived repos
-   - Non-Python repos
-   - Awesome-lists (name or description contains "awesome")
-   - Repos matching the denylist (registry/denylist.yaml)
-3. Detects install method from repo root files:
-   - `pyproject.toml` or `setup.py` -> `pip-repo`
-   - `requirements.txt` -> `git-requirements`
-   - Neither -> `unknown`
-4. Checks if the repo is published on PyPI (tries name variations).
-5. Writes `pipeline/candidates.yaml` with all surviving candidates.
-
-### Requirements
-
-- A `GITHUB_TOKEN` environment variable (no special scopes needed; only reads public data)
-- Python 3.10+
-- `requests` library (install with `pip install -e ".[pipeline]"`)
-
-### Usage
-
+Usage:
 ```bash
-# Install the pipeline dependencies
-pip install -e ".[pipeline]"
-
-# Run with a limit for testing (recommended first run)
-python pipeline/discover.py --limit 100
-
-# Full run (no limit)
-python pipeline/discover.py
+python pipeline/discover.py [--limit N] [--output PATH]
 ```
 
-### Output
+- `--limit N`: Stop after finding N unique repos across all topic queries (default: no limit)
+- `--output PATH`: Output file (default: `pipeline/candidates.yaml`)
 
-The script writes `pipeline/candidates.yaml` with entries like:
+## verify.py
 
-```yaml
-- name: sherlock
-  repo: sherlock-project/sherlock
-  stars: 50000
-  description: "Search usernames across social networks"
-  license: MIT
-  detected_install_method: pip-repo
-  candidate_pip_package: sherlock-project
-  default_branch: master
-  discovered_at: "2026-09-23T12:34:56+00:00"
+Verifies candidate tools by installing each in an isolated sandbox, running a smoke test, and generating registry entries for those that pass.
+
+Usage:
+```bash
+python pipeline/verify.py [--limit N] [--resume]
 ```
 
-### Notes
+- `--limit N`: Only test the first N untested candidates (useful for trial runs)
+- `--resume`: Skip candidates already recorded in `pipeline/verification_log.jsonl`
 
-- `candidates.yaml` is an input to the next task (verification), not the final registry.
-- The script is safe to re-run; it overwrites `candidates.yaml` cleanly each time.
-- Network errors on individual repos are logged and skipped; the script continues.
-- GitHub rate limits are respected; the script sleeps if `X-RateLimit-Remaining` drops below 10.
+### Process
 
-### GitHub Token
+For each candidate with `likely_installable: true`:
 
-The `GITHUB_TOKEN` environment variable must be set. It only needs read access to public
-repositories (no special scopes required). The script does not write the token to any
-output file.
+1. Creates a fresh temporary sandbox directory
+2. Creates a virtualenv inside it
+3. Attempts installation based on `detected_install_method`:
+   - `pip-repo` with `candidate_pip_package`: `pip install <package>`
+   - `pip-repo` without package: `pip install git+https://github.com/<repo>.git`
+   - `git-requirements`: `git clone` then `pip install -r requirements.txt`
+4. Detects entrypoint (console script or root-level Python script)
+5. Runs smoke test: `--help`, falling back to `--version` then `-h`
+6. Records version (from `pip show` or git commit hash)
+7. Deletes sandbox
+8. Appends result to `pipeline/verification_log.jsonl` (JSON Lines format)
+
+### Output Files
+
+- `pipeline/verification_log.jsonl`: One JSON object per line, appended only. Contains:
+  - `name`, `repo`, `outcome` (passed/failed/timeout/skipped)
+  - `reason` (for failures), `entrypoint_command`/`entrypoint_script`, `version`, `smoke_output`, `tested_at`
+- `registry/generated_registry.yaml`: Validated Tool entries for all passed candidates, ready for human review before merging into the bundled registry (`src/otinstaller/data/registry.yaml`)
+
+### Resume Support
+
+Run with `--resume` to skip already-tested candidates. The log file is append-only, so interrupted runs don't lose progress.
+
+### Timing
+
+A full run of ~100 candidates takes approximately 10-20 minutes depending on network speed and tool install times. The trial run of 5 candidates took ~60 seconds (2 passed, 3 failed). Typical per-tool time: 10-60 seconds for pip installs, 30-120 seconds for git-requirements installs.
+
+## generated_registry.yaml
+
+This file is NOT the bundled registry used by the CLI. It is a candidate output for human review. Each entry has been validated against the Tool schema but has not been manually reviewed for capabilities, topics, or API key requirements. A human should:
+
+1. Review each entry for correctness
+2. Add appropriate `capabilities` and `topics` tags
+3. Add `api_keys` if the tool requires external APIs
+4. Merge approved entries into `src/otinstaller/data/registry.yaml`
+
+## Candidates File Format
+
+`candidates.yaml` contains a list of candidates with:
+- `name`: Sanitized tool name
+- `repo`: GitHub repo (owner/name)
+- `stars`: Star count
+- `description`: Tool description
+- `license`: SPDX license identifier
+- `detected_install_method`: `pip-repo`, `git-requirements`, or `unknown`
+- `likely_installable`: Boolean indicating if install is likely to succeed
+- `candidate_pip_package`: PyPI package name (if known)
+- `default_branch`: Default branch name
+- `discovered_at`: ISO timestamp

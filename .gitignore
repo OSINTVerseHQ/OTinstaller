@@ -23,6 +23,10 @@ dist/
 build/
 *.egg-info/
 
+# Pipeline verification outputs
+pipeline/verification_log.jsonl
+registry/generated_registry.yaml
+
 # IDE
 .vscode/
 .idea/
