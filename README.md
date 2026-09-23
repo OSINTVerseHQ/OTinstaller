@@ -1,4 +1,4 @@
-# otinstaller
+# OTinstaller
 
 Install, run and update command line tools by name.
 
