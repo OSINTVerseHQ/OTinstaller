@@ -62,6 +62,36 @@ tools:
   accepts:
   - username
   - email
+- name: theharvester
+  display_name: theHarvester
+  description: Find emails, subdomains and names for a domain
+  repo: laramies/theHarvester
+  install:
+    method: git
+    url: https://github.com/laramies/theHarvester.git
+    ref: 4.11.1
+    as_package: true
+  entrypoint:
+    command: theHarvester
+  smoke_args:
+  - --help
+  capabilities:
+  - domain-recon
+  - email-search
+  topics:
+  - domain
+  - email
+  api_keys:
+    optional:
+    - SHODAN_API_KEY
+    - HUNTER_API_KEY
+  verified:
+    date: '2026-09-22'
+    version: 4.11.1
+    os: Ubuntu 26.04 LTS via WSL2
+    python: 3.12.14
+  accepts:
+  - domain
 - name: spiderfoot
   display_name: Spiderfoot
   description: SpiderFoot automates OSINT for threat intelligence and mapping your
@@ -734,43 +764,6 @@ tools:
   - domain
   - username
   - email
-- name: blackwidow
-  display_name: Blackwidow
-  description: A Python based web application scanner to gather OSINT and fuzz for
-    OWASP vulnerabilities on a target website.
-  repo: 1N3/BlackWidow
-  license: NOASSERTION
-  stars: 1823
-  tier: community
-  install:
-    method: git
-    url: https://github.com/1N3/BlackWidow.git
-    requirements: requirements.txt
-  entrypoint:
-    script: injectx.py
-  smoke_args:
-  - --help
-  capabilities:
-  - domain-recon
-  - subdomain-enum
-  - vulnerability-scan
-  - web-scanner
-  topics:
-  - web
-  - domain
-  - subdomain
-  - vulnerability
-  api_keys:
-    required: []
-    optional: []
-  verified:
-    date: '2026-09-24'
-    version: c9eb24e
-    os: Ubuntu 26.04 LTS
-    python: 3.12.14
-  accepts:
-  - url
-  - domain
 - name: onionsearch
   display_name: Onionsearch
   description: OnionSearch is a script that scrapes urls on different.
@@ -1168,26 +1161,6 @@ tools:
   accepts:
   - username
   - email
-- name: theharvester
-  display_name: "theHarvester"
-  description: "Find emails, subdomains and names for a domain"
-  repo: "laramies/theHarvester"
-  install:
-    method: git
-    url: https://github.com/laramies/theHarvester.git
-    ref: "4.11.1"
-    as_package: true
-  entrypoint:
-    command: theHarvester
-  capabilities: ["domain-recon", "email-search"]
-  api_keys:
-    optional: ["SHODAN_API_KEY", "HUNTER_API_KEY"]
-  verified:
-    date: "2026-09-22"
-    version: "4.11.1"
-    os: "Ubuntu 26.04 LTS via WSL2"
-    python: "3.12.14"
-  accepts: ["domain"]
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
   description: Repositrio criado com intuito de reunir expresses regulares dentro
@@ -1365,44 +1338,6 @@ tools:
   verified:
     date: '2026-09-24'
     version: unknown
-    os: Ubuntu 26.04 LTS
-    python: 3.12.14
-  accepts:
-  - domain
-  - ip
-- name: opendoor
-  display_name: Nettacker
-  description: Automated Penetration Testing Framework - Open-Source Vulnerability
-    Scanner - Vulnerability Management.
-  repo: OWASP/Nettacker
-  license: Apache-2.0
-  stars: 5616
-  tier: community
-  install:
-    method: pip
-    package: nettacker
-    version: 5.18.0
-  entrypoint:
-    command: opendoor
-  smoke_args:
-  - --help
-  capabilities:
-  - domain-recon
-  - subdomain-enum
-  - ip-recon
-  - vulnerability-scan
-  - dual-use
-  topics:
-  - vulnerability
-  - domain
-  - ip
-  - subdomain
-  api_keys:
-    required: []
-    optional: []
-  verified:
-    date: '2026-09-24'
-    version: 5.18.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
