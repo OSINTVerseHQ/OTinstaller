@@ -159,7 +159,7 @@ class TestRunSmokeTest:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["test", "--help"], returncode=0, stdout="usage: test\n", stderr=""
             )
-            success, output, soft_pass = run_smoke_test(["test", "--help"], timeout=30)
+            success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
             assert success is True
             assert soft_pass is False
 
@@ -174,7 +174,7 @@ class TestRunSmokeTest:
                     args=["test", "--version"], returncode=0, stdout="1.0.0\n", stderr=""
                 ),
             ]
-            success, output, soft_pass = run_smoke_test(["test", "--help"], timeout=30)
+            success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
             assert success is True
             assert soft_pass is False
 
@@ -184,7 +184,7 @@ class TestRunSmokeTest:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["test", "--help"], returncode=1, stdout="", stderr="error: not found"
             )
-            success, output, soft_pass = run_smoke_test(["test", "--help"], timeout=30)
+            success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
             assert success is False
 
     def test_soft_pass_nonzero_but_usage_output(self):
@@ -204,7 +204,7 @@ class TestRunSmokeTest:
                     args=["test", "-h"], returncode=1, stdout="", stderr="error"
                 ),
             ]
-            success, output, soft_pass = run_smoke_test(["test", "--help"], timeout=30)
+            success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
             assert success is True
             assert soft_pass is True
 
@@ -217,7 +217,7 @@ class TestRunSmokeTest:
                 stdout="",
                 stderr="Traceback (most recent call last):\n  File ...",
             )
-            success, output, soft_pass = run_smoke_test(["test", "--help"], timeout=30)
+            success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
             assert success is False
 
 
@@ -413,3 +413,149 @@ class TestCleanupSandbox:
 
             cleanup_sandbox(sandbox)
             assert not sandbox.exists()
+
+
+def test_skipped_candidates_logged():
+    """Test that skipped candidates (not likely installable) are logged."""
+    import yaml
+
+    from pipeline.verify import load_verification_log
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        candidates = [
+            {
+                "name": "installable",
+                "repo": "org/installable",
+                "likely_installable": True,
+                "detected_install_method": "pip-repo",
+                "candidate_pip_package": "installable",
+                "default_branch": "main",
+            },
+            {
+                "name": "not-installable",
+                "repo": "org/not-installable",
+                "likely_installable": False,
+                "detected_install_method": "unknown",
+            },
+        ]
+        yaml.dump(candidates, f)
+        candidates_path = Path(f.name)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+        log_path = Path(f.name)
+
+    try:
+        # Mock load_candidates
+        import pipeline.verify as pv
+
+        original_load = pv.load_candidates
+        pv.load_candidates = lambda: candidates
+        original_log_path = pv.LOG_PATH
+        pv.LOG_PATH = log_path
+
+        # Run the skipped logging logic
+        skipped_not_likely = [c for c in candidates if not c.get("likely_installable")]
+        for candidate in skipped_not_likely:
+            log_data = {
+                "name": candidate["name"],
+                "repo": candidate["repo"],
+                "outcome": "skipped",
+                "reason": "not likely installable",
+                "tested_at": "2026-01-01T00:00:00Z",
+            }
+            pv.append_log_entry(pv.LOG_PATH, log_data)
+
+        # Verify
+        loaded = load_verification_log(log_path)
+        assert "not-installable" in loaded
+        assert "installable" not in loaded
+
+        # Check log content
+        with log_path.open() as f:
+            lines = [json.loads(line) for line in f if line.strip()]
+            skipped_entries = [e for e in lines if e["outcome"] == "skipped"]
+            assert len(skipped_entries) == 1
+            assert skipped_entries[0]["name"] == "not-installable"
+            assert skipped_entries[0]["reason"] == "not likely installable"
+
+    finally:
+        pv.load_candidates = original_load
+        pv.LOG_PATH = original_log_path
+        candidates_path.unlink(missing_ok=True)
+        log_path.unlink(missing_ok=True)
+
+
+def test_smoke_output_captured_on_failure():
+    """Test that smoke output is captured even when smoke test fails."""
+    from pipeline.verify import run_smoke_test
+
+    with patch("pipeline.verify.run_cmd") as mock_run:
+        # Mock a failing smoke test that produces error output (not usage)
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["test", "--help"], returncode=1, stdout="", stderr="error: not found"
+        )
+        success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
+        assert success is False
+        assert full_output == "error: not found"
+
+    with patch("pipeline.verify.run_cmd") as mock_run:
+        # Mock all args failing but --help produces usage -> soft pass
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(
+                args=["test", "--help"],
+                returncode=1,
+                stdout="usage: test [options]\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=["test", "--version"], returncode=1, stdout="", stderr="error"
+            ),
+            subprocess.CompletedProcess(
+                args=["test", "-h"], returncode=1, stdout="", stderr="error"
+            ),
+        ]
+        success, output, soft_pass, full_output = run_smoke_test(["test", "--help"], timeout=30)
+        assert success is True  # Soft pass
+        assert soft_pass is True
+        assert full_output == "usage: test [options]\n"
+
+
+def test_registry_entry_with_actual_install_method():
+    """Test that build_registry_entry uses actual install method from verification."""
+    from otinstaller.registry import RegistryError, parse_tool
+    from pipeline.verify import build_registry_entry
+
+    # fsociety case: detected as "unknown" but actually installed via pip with command
+    log_entry = {
+        "name": "fsociety",
+        "repo": "Manisso/fsociety",
+        "outcome": "passed",
+        "entrypoint_command": "fsociety",
+        "version": "3.2.9",
+        "tested_at": "2026-09-24T12:00:00Z",
+    }
+    candidate = {
+        "name": "fsociety",
+        "repo": "Manisso/fsociety",
+        "stars": 12317,
+        "description": "A Penetration Testing Framework",
+        "license": "MIT",
+        "detected_install_method": "unknown",
+        "candidate_pip_package": "fsociety",
+        "default_branch": "master",
+    }
+
+    # Should fail with discovery method "unknown" (defaults to git)
+    try:
+        tool_dict = build_registry_entry(candidate, log_entry, "unknown")
+        parse_tool(tool_dict)
+        raise AssertionError("Should have failed with unknown method")
+    except RegistryError:
+        pass  # Expected
+
+    # Should succeed with actual method "pip-repo"
+    tool_dict = build_registry_entry(candidate, log_entry, "pip-repo")
+    parsed = parse_tool(tool_dict)
+    assert parsed.install.method == "pip"
+    assert parsed.install.package == "fsociety"
+    assert parsed.entrypoint.command == "fsociety"

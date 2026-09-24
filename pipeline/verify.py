@@ -186,28 +186,31 @@ def detect_entrypoint(
 
 def run_smoke_test(
     entrypoint_cmd: list[str], timeout: int = SMOKE_TIMEOUT
-) -> tuple[bool, str, bool]:
+) -> tuple[bool, str, bool, str]:
     soft_pass_output = ""
     help_output = ""
+    last_output = ""
     for arg in ("--help", "--version", "-h"):
         try:
             result = run_cmd(entrypoint_cmd + [arg], timeout=timeout)
-            if result.returncode == 0:
-                return True, result.stdout + result.stderr, False
             output = result.stdout + result.stderr
+            last_output = output
+            if result.returncode == 0:
+                return True, output, False, output
             if arg == "--help":
                 help_output = output
             # Track soft pass candidate: nonzero but produced output without traceback
-            if output and "Traceback" not in output:
+            # Only consider --help output for soft pass
+            if arg == "--help" and output and "Traceback" not in output:
                 soft_pass_output = output
         except subprocess.TimeoutExpired:
-            return False, "", False
+            return False, last_output, False, last_output
         except FileNotFoundError:
             continue
     # If we got here, all args failed. Soft pass only if --help produced usage-like output.
     if soft_pass_output and _looks_like_usage(help_output):
-        return True, soft_pass_output, True
-    return False, "", False
+        return True, soft_pass_output, True, soft_pass_output
+    return False, last_output, False, last_output
 
 
 def _looks_like_usage(text: str) -> bool:
@@ -315,9 +318,9 @@ def attempt_install(
             script_path = repo_root / entrypoint["script"]
             entrypoint_cmd = [sys.executable, str(script_path)]
 
-        smoke_ok, smoke_output, soft_pass = run_smoke_test(entrypoint_cmd)
+        smoke_ok, smoke_output, soft_pass, full_output = run_smoke_test(entrypoint_cmd)
         if not smoke_ok:
-            return False, "smoke test failed", None
+            return False, "smoke test failed", {"smoke_output": full_output[:500]}
 
         version = get_version(venv, install_method, candidate_pip_package, repo_root)
 
@@ -337,10 +340,15 @@ def attempt_install(
         return False, f"error: {e}", None
 
 
-def build_registry_entry(candidate: dict[str, Any], log_entry: dict[str, Any]) -> dict[str, Any]:
+def build_registry_entry(
+    candidate: dict[str, Any],
+    log_entry: dict[str, Any],
+    actual_install_method: str | None = None,
+) -> dict[str, Any]:
     name = candidate["name"]
     repo = candidate["repo"]
-    install_method = candidate["detected_install_method"]
+    # Use actual install method from verification, fallback to discovery guess
+    install_method = actual_install_method or candidate["detected_install_method"]
     candidate_pip_package = candidate.get("candidate_pip_package")
     version = log_entry["version"]
 
@@ -416,11 +424,88 @@ def write_registry(entries: list[dict[str, Any]]) -> None:
         yaml.dump(content, f, sort_keys=False, allow_unicode=True)
 
 
+def recheck_smoke_tests() -> int:
+    """Re-run smoke tests for failed entries to capture output."""
+    if not LOG_PATH.exists():
+        print("No verification log found")
+        return 1
+
+    # Load all log entries
+    entries = []
+    with LOG_PATH.open() as f:
+        for i, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                entries.append(entry)
+            except json.JSONDecodeError as e:
+                print(f"  WARNING: malformed JSON line {i} in {LOG_PATH}: {e}")
+
+    # Find failed smoke test entries
+    failed_smoke = [e for e in entries if e.get("reason") == "smoke test failed"]
+    if not failed_smoke:
+        print("No failed smoke tests to recheck")
+        return 0
+
+    print(f"Rechecking {len(failed_smoke)} failed smoke tests...")
+
+    # Load candidates for repo info
+    candidates_by_name = {c["name"]: c for c in load_candidates()}
+
+    rechecked = 0
+    for entry in failed_smoke:
+        name = entry["name"]
+        candidate = candidates_by_name.get(name)
+        if not candidate:
+            print(f"  {name}: no candidate data, skipping")
+            continue
+
+        print(f"  Rechecking {name}...")
+        sandbox = Path(tempfile.mkdtemp(prefix=f"otrecheck-{name}-"))
+        try:
+            success, reason, details = attempt_install(candidate, sandbox)
+            if success:
+                # Update the entry with new output
+                entry["smoke_output"] = details.get("smoke_output", "")
+                entry["tested_at"] = datetime.now(timezone.utc).isoformat()
+                rechecked += 1
+                print(f"  {name}: now passed")
+            else:
+                # Still failed, but capture output this time
+                if isinstance(details, dict) and "smoke_output" in details:
+                    entry["smoke_output"] = details["smoke_output"]
+                    rechecked += 1
+                    print(f"  {name}: still failed, but output captured")
+                else:
+                    print(f"  {name}: still failed, no output")
+        finally:
+            cleanup_sandbox(sandbox)
+
+    # Rewrite the entire log file with updated entries
+    with LOG_PATH.open("w") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+    print(f"Rechecked {rechecked} entries, updated log at {LOG_PATH}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify candidate tools")
     parser.add_argument("--limit", type=int, help="Limit number of candidates to test")
     parser.add_argument("--resume", action="store_true", help="Skip already tested candidates")
+    parser.add_argument(
+        "--recheck-smoke-only",
+        action="store_true",
+        help="Re-run smoke tests for failed entries to capture output",
+    )
     args = parser.parse_args()
+
+    # Handle --recheck-smoke-only mode
+    if args.recheck_smoke_only:
+        return recheck_smoke_tests()
 
     candidates = load_candidates()
 
@@ -453,6 +538,17 @@ def main() -> int:
     failure_reasons = {}
     registry_entries = []
 
+    # Log skipped candidates (not likely installable)
+    for candidate in skipped_not_likely:
+        log_data = {
+            "name": candidate["name"],
+            "repo": candidate["repo"],
+            "outcome": "skipped",
+            "reason": "not likely installable",
+            "tested_at": datetime.now(timezone.utc).isoformat(),
+        }
+        append_log_entry(LOG_PATH, log_data)
+
     for i, candidate in enumerate(to_test, 1):
         name = candidate["name"]
         print(f"[{i}/{len(to_test)}] Testing {name}...")
@@ -484,13 +580,21 @@ def main() -> int:
                 stats["passed"] += 1
                 # Build registry entry and validate
                 try:
-                    registry_entry = build_registry_entry(candidate, log_data)
+                    actual_install_method = details.get(
+                        "actual_install_method", candidate["detected_install_method"]
+                    )
+                    registry_entry = build_registry_entry(
+                        candidate, log_data, actual_install_method
+                    )
                     parse_tool(registry_entry)  # Validate
                     registry_entries.append(registry_entry)
                 except RegistryError as e:
                     print(f"  WARNING: registry validation failed for {name}: {e}")
                     # Don't add to registry_entries, but keep the passed log
             else:
+                # Capture smoke output even on failure
+                if isinstance(details, dict) and "smoke_output" in details:
+                    log_data["smoke_output"] = details["smoke_output"]
                 if reason == "timeout":
                     stats["timeout"] += 1
                 else:
@@ -502,8 +606,6 @@ def main() -> int:
 
         finally:
             cleanup_sandbox(sandbox)
-
-    if registry_entries:
         write_registry(registry_entries)
 
     # Also generate registry from full log (for resumed runs)
@@ -531,7 +633,13 @@ def main() -> int:
         if not candidate:
             continue
         try:
-            registry_entry = build_registry_entry(candidate, log_entry)
+            # Infer actual install method from log entry
+            actual_method = None
+            if log_entry.get("entrypoint_command"):
+                actual_method = "pip-repo"
+            elif log_entry.get("entrypoint_script"):
+                actual_method = "git-requirements"
+            registry_entry = build_registry_entry(candidate, log_entry, actual_method)
             parse_tool(registry_entry)
             full_registry_entries.append(registry_entry)
         except RegistryError as e:
