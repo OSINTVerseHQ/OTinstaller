@@ -40,14 +40,15 @@ def load_verification_log(log_path: Path) -> set[str]:
     tested = set()
     if log_path.exists():
         with log_path.open() as f:
-            for line in f:
+            for i, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
                     continue
                 try:
                     entry = json.loads(line)
                     tested.add(entry.get("name", ""))
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"  WARNING: malformed JSON line {i} in {log_path}: {e}")
                     continue
     return tested
 
@@ -70,10 +71,10 @@ def create_venv(sandbox: Path) -> Path:
 
 
 def pip_install(
-    venv: Path, spec: str, timeout: int = INSTALL_TIMEOUT
+    venv: Path, *spec: str, timeout: int = INSTALL_TIMEOUT
 ) -> subprocess.CompletedProcess:
     pip = venv / "bin" / "pip"
-    return run_cmd([str(pip), "install", spec], timeout=timeout)
+    return run_cmd([str(pip), "install", *spec], timeout=timeout)
 
 
 def git_clone(repo: str, dest: Path, timeout: int = 60) -> subprocess.CompletedProcess:
@@ -153,10 +154,32 @@ def detect_entrypoint(
 
     # Git-requirements: look for matching script at repo root
     if install_method == "git-requirements" and repo_root:
-        for py_file in repo_root.glob("*.py"):
+        py_files = list(repo_root.glob("*.py"))
+        # 1. Exact match on candidate name or repo name
+        for py_file in py_files:
             stem = py_file.stem
             if stem in (candidate_name, repo_short):
                 return {"script": py_file.name}
+
+        # 2. Common entrypoint names
+        common_names = {"main", "cli", "run", "app", "server", "start"}
+        for py_file in py_files:
+            stem = py_file.stem
+            if stem.lower() in common_names:
+                return {"script": py_file.name}
+
+        # 3. If only one .py file at root, use it
+        if len(py_files) == 1:
+            return {"script": py_files[0].name}
+
+        # 4. Check for shebang or __main__ block
+        for py_file in py_files:
+            try:
+                content = py_file.read_text()
+                if content.startswith("#!") or 'if __name__ == "__main__"' in content:
+                    return {"script": py_file.name}
+            except OSError:
+                pass
 
     return None
 
@@ -221,6 +244,20 @@ def get_version(
     return "unknown"
 
 
+def _find_requirements_txt(root: Path) -> Path | None:
+    """Find requirements.txt at root or one level deep."""
+    root_req = root / "requirements.txt"
+    if root_req.exists():
+        return root_req
+    # Search one level deep
+    for subdir in root.iterdir():
+        if subdir.is_dir():
+            sub_req = subdir / "requirements.txt"
+            if sub_req.exists():
+                return sub_req
+    return None
+
+
 def cleanup_sandbox(sandbox: Path) -> None:
     import shutil
 
@@ -255,11 +292,11 @@ def attempt_install(
             if result.returncode != 0:
                 return False, f"git clone failed: {result.stderr[:200]}", None
 
-            req_file = repo_root / "requirements.txt"
-            if not req_file.exists():
-                return False, "requirements.txt not found at root", None
+            req_file = _find_requirements_txt(repo_root)
+            if not req_file:
+                return False, "requirements.txt not found at root or one level deep", None
 
-            result = pip_install(venv, f"-r {req_file}")
+            result = pip_install(venv, "-r", str(req_file))
             if result.returncode != 0:
                 return False, f"requirements install failed: {result.stderr[:200]}", None
 
@@ -473,7 +510,7 @@ def main() -> int:
     all_passed = []
     if LOG_PATH.exists():
         with LOG_PATH.open() as f:
-            for line in f:
+            for i, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
                     continue
@@ -481,7 +518,8 @@ def main() -> int:
                     entry = json.loads(line)
                     if entry.get("outcome") == "passed":
                         all_passed.append(entry)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"  WARNING: malformed JSON line {i} in {LOG_PATH}: {e}")
                     continue
 
     # Build registry entries for all passed tools from log

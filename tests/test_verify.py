@@ -320,16 +320,76 @@ class TestLoadVerificationLog:
         finally:
             log_path.unlink()
 
-    def test_empty_log(self):
-        """Test empty log returns empty set."""
+    def test_malformed_log_line_warning(self, capsys):
+        """Test that malformed JSON lines are warned and skipped."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            f.write('{"name": "valid", "outcome": "passed"}\n')
+            f.write("not valid json\n")
+            f.write('{"name": "valid2", "outcome": "passed"}\n')
             log_path = Path(f.name)
 
         try:
             tested = load_verification_log(log_path)
-            assert tested == set()
+            assert tested == {"valid", "valid2"}
+            captured = capsys.readouterr()
+            assert "WARNING" in captured.out
+            assert "malformed" in captured.out.lower()
         finally:
             log_path.unlink()
+
+
+class TestFindRequirementsTxt:
+    def test_find_at_root(self):
+        """Test finding requirements.txt at repo root."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            repo.mkdir()
+            (repo / "requirements.txt").write_text("requests\n")
+
+            from pipeline.verify import _find_requirements_txt
+
+            found = _find_requirements_txt(repo)
+            assert found == repo / "requirements.txt"
+
+    def test_find_one_level_deep(self):
+        """Test finding requirements.txt one level deep."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            repo.mkdir()
+            subdir = repo / "subdir"
+            subdir.mkdir()
+            (subdir / "requirements.txt").write_text("requests\n")
+
+            from pipeline.verify import _find_requirements_txt
+
+            found = _find_requirements_txt(repo)
+            assert found == subdir / "requirements.txt"
+
+    def test_find_first_match(self):
+        """Test that first found match is returned (root preferred)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            repo.mkdir()
+            (repo / "requirements.txt").write_text("root\n")
+            subdir = repo / "subdir"
+            subdir.mkdir()
+            (subdir / "requirements.txt").write_text("sub\n")
+
+            from pipeline.verify import _find_requirements_txt
+
+            found = _find_requirements_txt(repo)
+            assert found == repo / "requirements.txt"
+
+    def test_not_found(self):
+        """Test None returned when no requirements.txt exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            repo.mkdir()
+
+            from pipeline.verify import _find_requirements_txt
+
+            found = _find_requirements_txt(repo)
+            assert found is None
 
 
 class TestCleanupSandbox:
