@@ -394,10 +394,11 @@ def test_default_registry_path_bundled(monkeypatch, tmp_path):
 def test_bundled_registry_loads():
     tools = load_registry(default_registry_path())
     names = [t.name for t in tools]
-    # Should have 40 tools (minus any denylisted)
-    assert len(tools) == 40
+    # Should have 41 tools (theharvester added back)
+    assert len(tools) == 41
     assert "sherlock" in names
     assert "maigret" in names
+    assert "theharvester" in names
     # Check a few more from the new registry
     assert "spiderfoot" in names
     assert "ghunt" in names
@@ -559,7 +560,7 @@ def test_bundled_registry_all_entries_parse_and_pass_denylist():
     tools = load_registry(default_registry_path())
 
     # Every entry must parse successfully (already done by load_registry)
-    assert len(tools) == 40
+    assert len(tools) == 41
 
     # Load denylist and check each tool
     denylist = load_denylist(Path("registry/denylist.yaml"))

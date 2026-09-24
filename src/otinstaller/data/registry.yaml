@@ -1168,6 +1168,26 @@ tools:
   accepts:
   - username
   - email
+- name: theharvester
+  display_name: "theHarvester"
+  description: "Find emails, subdomains and names for a domain"
+  repo: "laramies/theHarvester"
+  install:
+    method: git
+    url: https://github.com/laramies/theHarvester.git
+    ref: "4.11.1"
+    as_package: true
+  entrypoint:
+    command: theHarvester
+  capabilities: ["domain-recon", "email-search"]
+  api_keys:
+    optional: ["SHODAN_API_KEY", "HUNTER_API_KEY"]
+  verified:
+    date: "2026-09-22"
+    version: "4.11.1"
+    os: "Ubuntu 26.04 LTS via WSL2"
+    python: "3.12.14"
+  accepts: ["domain"]
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
   description: Repositrio criado com intuito de reunir expresses regulares dentro
