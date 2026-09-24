@@ -1,0 +1,1023 @@
+tools:
+- name: maigret
+  display_name: Maigret
+  description: Collect a dossier on a person by username from 6K websites.
+  repo: soxoj/maigret
+  license: MIT
+  stars: 37921
+  tier: community
+  install:
+    method: pip
+    package: maigret
+    version: 0.6.6
+  entrypoint:
+    command: maigret
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.6.6
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: ghunt
+  display_name: Ghunt
+  description: Offensive Google framework.
+  repo: mxrch/GHunt
+  license: NOASSERTION
+  stars: 19596
+  tier: community
+  install:
+    method: pip
+    package: ghunt
+    version: 2.3.4
+  entrypoint:
+    command: ghunt
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.3.4
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: spiderfoot
+  display_name: Spiderfoot
+  description: SpiderFoot automates OSINT for threat intelligence and mapping your
+    attack surface.
+  repo: smicallef/spiderfoot
+  license: MIT
+  stars: 22469
+  tier: community
+  install:
+    method: git
+    url: https://github.com/smicallef/spiderfoot.git
+    requirements: requirements.txt
+  entrypoint:
+    script: sfcli.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0f815a2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: instaloader
+  display_name: Instaloader
+  description: Download pictures (or videos) along with their captions and other metadata
+    from Instagram.
+  repo: instaloader/instaloader
+  license: MIT
+  stars: 13427
+  tier: community
+  install:
+    method: pip
+    package: instaloader
+    version: 4.15.3
+  entrypoint:
+    command: instaloader
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 4.15.3
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: sherlock
+  display_name: Sherlock
+  description: Hunt down social media accounts by username across social networks.
+  repo: sherlock-project/sherlock
+  license: MIT
+  stars: 92545
+  tier: community
+  install:
+    method: pip
+    package: sherlock-project
+    version: 0.16.2
+  entrypoint:
+    command: sherlock
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.16.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: holehe
+  display_name: Holehe
+  description: holehe allows you to check if the mail is used on different sites like
+    twitter, instagram and will retrieve information on sites with the forgotten password
+    function.
+  repo: megadose/holehe
+  license: GPL-3.0
+  stars: 14986
+  tier: community
+  install:
+    method: pip
+    package: holehe
+    version: '1.61'
+  entrypoint:
+    command: holehe
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: '1.61'
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: bbot
+  display_name: Bbot
+  description: The recursive internet scanner for hackers.
+  repo: blacklanternsecurity/bbot
+  license: AGPL-3.0
+  stars: 10616
+  tier: community
+  install:
+    method: pip
+    package: bbot
+    version: 3.0.2
+  entrypoint:
+    command: bbot
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 3.0.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: dnstwist
+  display_name: Dnstwist
+  description: Domain name permutation engine for detecting homograph phishing attacks,
+    typo squatting, and brand impersonation.
+  repo: elceef/dnstwist
+  license: Apache-2.0
+  stars: 5741
+  tier: community
+  install:
+    method: pip
+    package: dnstwist
+    version: '20250130'
+  entrypoint:
+    command: dnstwist
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: '20250130'
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: h8mail
+  display_name: H8Mail
+  description: Email OSINT & Password breach hunting tool, locally or using premium
+    services.
+  repo: khast3x/h8mail
+  license: NOASSERTION
+  stars: 5309
+  tier: community
+  install:
+    method: pip
+    package: h8mail
+    version: 2.5.6
+  entrypoint:
+    command: h8mail
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.5.6
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: user-scanner
+  display_name: User Scanner
+  description: (2-in-1) Email & Username OSINT suite featuring native MCP support
+    for deep data extraction just from a single Email/Username.
+  repo: kaifcodec/user-scanner
+  license: MIT
+  stars: 4985
+  tier: community
+  install:
+    method: pip
+    package: user-scanner
+    version: 1.5.2
+  entrypoint:
+    command: user-scanner
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.5.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: torbot
+  display_name: Torbot
+  description: Dark Web OSINT Tool.
+  repo: DedSecInside/TorBot
+  license: NOASSERTION
+  stars: 4935
+  tier: community
+  install:
+    method: pip
+    package: torbot
+    version: 4.3.0
+  entrypoint:
+    command: torbot
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 4.3.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: toutatis
+  display_name: Toutatis
+  description: Toutatis is a tool that allows you to extract information from instagrams
+    accounts such as e-mails, phone numbers and more.
+  repo: megadose/toutatis
+  license: GPL-3.0
+  stars: 4300
+  tier: community
+  install:
+    method: pip
+    package: toutatis
+    version: '1.31'
+  entrypoint:
+    command: toutatis
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: '1.31'
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: ivre
+  display_name: Ivre
+  description: Network recon framework.
+  repo: ivre/ivre
+  license: GPL-3.0
+  stars: 4152
+  tier: community
+  install:
+    method: pip
+    package: ivre
+    version: 0.9.20
+  entrypoint:
+    command: ivre
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.9.20
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: aliens-eye
+  display_name: Aliens Eye
+  description: Hunt down 840+ social media accounts using AI.
+  repo: arxhr007/Aliens_eye
+  license: MIT
+  stars: 4122
+  tier: community
+  install:
+    method: pip
+    package: aliens_eye
+    version: 2.5.0
+  entrypoint:
+    command: aliens_eye
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.5.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: paramspider
+  display_name: Paramspider
+  description: Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further
+    probing.
+  repo: devanshbatham/ParamSpider
+  license: MIT
+  stars: 3174
+  tier: community
+  install:
+    method: pip
+    package: paramspider
+    version: unknown
+  entrypoint:
+    command: paramspider
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: unknown
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: nexfil
+  display_name: Nexfil
+  description: OSINT tool for finding profiles by username.
+  repo: thewhiteh4t/nexfil
+  license: MIT
+  stars: 2623
+  tier: community
+  install:
+    method: pip
+    package: nexfil
+    version: 1.0.6
+  entrypoint:
+    command: nexfil
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.0.6
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: yark
+  display_name: Yark
+  description: OSINT for YouTube made simple.
+  repo: Owez/yark
+  license: MIT
+  stars: 2189
+  tier: community
+  install:
+    method: pip
+    package: yark
+    version: 1.2.12
+  entrypoint:
+    command: yark
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.2.12
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: cloud-enum
+  display_name: Cloud Enum
+  description: Multi-cloud OSINT tool.
+  repo: initstring/cloud_enum
+  license: MIT
+  stars: 2140
+  tier: community
+  install:
+    method: pip
+    package: cloud-enum
+    version: unknown
+  entrypoint:
+    command: cloud_enum
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: unknown
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: ignorant
+  display_name: Ignorant
+  description: ignorant allows you to check if a phone number is used on different
+    sites like snapchat, instagram.
+  repo: megadose/ignorant
+  license: GPL-3.0
+  stars: 2075
+  tier: community
+  install:
+    method: pip
+    package: ignorant
+    version: '1.2'
+  entrypoint:
+    command: ignorant
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: '1.2'
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: socialscan
+  display_name: Socialscan
+  description: Python library for accurately querying username and email usage on
+    online platforms.
+  repo: iojw/socialscan
+  license: MPL-2.0
+  stars: 1845
+  tier: community
+  install:
+    method: pip
+    package: socialscan
+    version: 2.0.1
+  entrypoint:
+    command: socialscan
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.0.1
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: fsociety
+  display_name: Fsociety
+  description: A Modular Penetration Testing Framework.
+  repo: fsociety-team/fsociety
+  license: MIT
+  stars: 1834
+  tier: community
+  install:
+    method: pip
+    package: fsociety
+    version: 3.2.9
+  entrypoint:
+    command: fsociety
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 3.2.9
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: blackwidow
+  display_name: Blackwidow
+  description: A Python based web application scanner to gather OSINT and fuzz for
+    OWASP vulnerabilities on a target website.
+  repo: 1N3/BlackWidow
+  license: NOASSERTION
+  stars: 1823
+  tier: community
+  install:
+    method: git
+    url: https://github.com/1N3/BlackWidow.git
+    requirements: requirements.txt
+  entrypoint:
+    script: injectx.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: c9eb24e
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: onionsearch
+  display_name: Onionsearch
+  description: OnionSearch is a script that scrapes urls on different.
+  repo: megadose/OnionSearch
+  license: GPL-3.0
+  stars: 1792
+  tier: community
+  install:
+    method: pip
+    package: onionsearch
+    version: '1.3'
+  entrypoint:
+    command: onionsearch
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: '1.3'
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: openosint
+  display_name: Openosint
+  description: AI-powered OSINT agent with interactive REPL, MCP server, and CLI.
+  repo: OpenOSINT/OpenOSINT
+  license: MIT
+  stars: 1630
+  tier: community
+  install:
+    method: pip
+    package: openosint
+    version: 2.29.0
+  entrypoint:
+    command: openosint
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.29.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: crosslinked
+  display_name: Crosslinked
+  description: LinkedIn enumeration tool to extract valid employee names from an organization
+    through search engine scraping.
+  repo: m8sec/CrossLinked
+  license: GPL-3.0
+  stars: 1593
+  tier: community
+  install:
+    method: pip
+    package: crosslinked
+    version: 0.3.0
+  entrypoint:
+    command: crosslinked
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.3.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: whatsapp-osint
+  display_name: Whatsapp Osint
+  description: WhatsApp spy - logs online/offline events from ANYONE in the world.
+  repo: jasperan/whatsapp-osint
+  license: MIT
+  stars: 1537
+  tier: community
+  install:
+    method: pip
+    package: whatsapp-osint
+    version: 2.0.1
+  entrypoint:
+    command: whatsapp-beacon
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.0.1
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: instagram-monitor
+  display_name: Instagram Monitor
+  description: Track Instagram users' activities, profile changes and capture content
+    with beautiful dashboards and instant notifications.
+  repo: misiektoja/instagram_monitor
+  license: GPL-3.0
+  stars: 1512
+  tier: community
+  install:
+    method: pip
+    package: instagram_monitor
+    version: 4.0.2
+  entrypoint:
+    command: instagram_monitor
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 4.0.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: mailaccess
+  display_name: Mailaccess
+  description: Free email OSINT tool, 2500+ platforms, identity clustering, breach
+    detection.
+  repo: KatrielMoses/MailAccess
+  license: unknown
+  stars: 1449
+  tier: community
+  install:
+    method: pip
+    package: mailaccess
+    version: 0.17.6
+  entrypoint:
+    command: mailaccess
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.17.6
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: secator
+  display_name: Secator
+  description: secator - the pentester's swiss knife.
+  repo: freelabz/secator
+  license: NOASSERTION
+  stars: 1311
+  tier: community
+  install:
+    method: pip
+    package: secator
+    version: 0.45.0
+  entrypoint:
+    command: secator
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.45.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: socid-extractor
+  display_name: Socid Extractor
+  description: 'The extraction engine behind Maigret: turn any profile URL into a
+    structured OSINT record across 150+ sites.'
+  repo: soxoj/socid-extractor
+  license: MIT
+  stars: 1095
+  tier: community
+  install:
+    method: pip
+    package: socid-extractor
+    version: 0.1.1
+  entrypoint:
+    command: socid_extractor
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.1.1
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: dnsgen
+  display_name: Dnsgen
+  description: DNSGen is a powerful and flexible DNS name permutation tool designed
+    for security researchers and penetration testers.
+  repo: AlephNullSK/dnsgen
+  license: MIT
+  stars: 1081
+  tier: community
+  install:
+    method: pip
+    package: dnsgen
+    version: 1.0.4
+  entrypoint:
+    command: dnsgen
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.0.4
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: sitedorks
+  display_name: Sitedorks
+  description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term
+    (dork) with a default set of websites, bug bounty programs or custom collection.
+  repo: Zarcolio/sitedorks
+  license: GPL-3.0
+  stars: 1056
+  tier: community
+  install:
+    method: git
+    url: https://github.com/Zarcolio/sitedorks.git
+    requirements: requirements.txt
+  entrypoint:
+    script: sitedorks.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: afa236d
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: linkook
+  display_name: Linkook
+  description: An OSINT tool for discovering linked social accounts and associated
+    emails across multiple platforms using a single username.
+  repo: JackJuly/linkook
+  license: MIT
+  stars: 1016
+  tier: community
+  install:
+    method: pip
+    package: linkook
+    version: 1.1.2
+  entrypoint:
+    command: linkook
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.1.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: osint-brazuca-regex
+  display_name: Osint Brazuca Regex
+  description: Repositrio criado com intuito de reunir expresses regulares dentro
+    do contexto Brasil.
+  repo: osintbrazuca/osint-brazuca-regex
+  license: MIT
+  stars: 1012
+  tier: community
+  install:
+    method: git
+    url: https://github.com/osintbrazuca/osint-brazuca-regex.git
+    requirements: requirements.txt
+  entrypoint:
+    script: osint_regex_scan.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 5ec0589
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: finalrecon
+  display_name: Finalrecon
+  description: All In One Web Recon.
+  repo: thewhiteh4t/FinalRecon
+  license: MIT
+  stars: 2997
+  tier: community
+  install:
+    method: git
+    url: https://github.com/thewhiteh4t/FinalRecon.git
+    requirements: requirements.txt
+  entrypoint:
+    script: finalrecon.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: b5db3a4
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: fierce
+  display_name: Fierce
+  description: A DNS reconnaissance tool for locating non-contiguous IP space.
+  repo: mschwager/fierce
+  license: GPL-3.0
+  stars: 1812
+  tier: community
+  install:
+    method: pip
+    package: fierce
+    version: 1.6.0
+  entrypoint:
+    command: fierce
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 1.6.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: pywerview
+  display_name: Pywerview
+  description: A (partial) Python rewriting of PowerSploit's PowerView.
+  repo: the-useless-one/pywerview
+  license: GPL-3.0
+  stars: 1134
+  tier: community
+  install:
+    method: pip
+    package: pywerview
+    version: 0.7.6
+  entrypoint:
+    command: pywerview
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 0.7.6
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: airecon
+  display_name: Airecon
+  description: AIRecon is an autonomous cybersecurity agent that combines a self-hosted
+    Large Language Model (Ollama) with a Kali Linux Docker sandbox and a Textual TUI.
+  repo: pikpikcu/airecon
+  license: MIT
+  stars: 1064
+  tier: community
+  install:
+    method: pip
+    package: airecon
+    version: unknown
+  entrypoint:
+    command: airecon
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: unknown
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: opendoor
+  display_name: Nettacker
+  description: Automated Penetration Testing Framework - Open-Source Vulnerability
+    Scanner - Vulnerability Management.
+  repo: OWASP/Nettacker
+  license: Apache-2.0
+  stars: 5616
+  tier: community
+  install:
+    method: pip
+    package: nettacker
+    version: 5.18.0
+  entrypoint:
+    command: opendoor
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 5.18.0
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+- name: ctfr
+  display_name: Ctfr
+  description: Abusing Certificate Transparency logs for getting HTTPS websites subdomains.
+  repo: UnaPibaGeek/ctfr
+  license: GPL-3.0
+  stars: 2123
+  tier: community
+  install:
+    method: git
+    url: https://github.com/UnaPibaGeek/ctfr.git
+    requirements: requirements.txt
+  entrypoint:
+    script: ctfr.py
+  smoke_args:
+  - --help
+  capabilities: []
+  topics: []
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 6c7fecd
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
