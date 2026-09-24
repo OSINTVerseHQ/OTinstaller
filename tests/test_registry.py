@@ -394,9 +394,14 @@ def test_default_registry_path_bundled(monkeypatch, tmp_path):
 def test_bundled_registry_loads():
     tools = load_registry(default_registry_path())
     names = [t.name for t in tools]
+    # Should have 40 tools (minus any denylisted)
+    assert len(tools) == 40
     assert "sherlock" in names
     assert "maigret" in names
-    assert "theharvester" in names
+    # Check a few more from the new registry
+    assert "spiderfoot" in names
+    assert "ghunt" in names
+    assert "holehe" in names
 
 
 def test_find_tool_case_insensitive():
@@ -545,3 +550,23 @@ def test_accepts_field_default_empty():
     }
     tool = parse_tool(data)
     assert tool.accepts == ()
+
+
+def test_bundled_registry_all_entries_parse_and_pass_denylist():
+    """Regression test: every entry in the bundled registry must parse and pass denylist."""
+    from otinstaller.denylist import check_tool, load_denylist
+
+    tools = load_registry(default_registry_path())
+
+    # Every entry must parse successfully (already done by load_registry)
+    assert len(tools) == 40
+
+    # Load denylist and check each tool
+    denylist = load_denylist(Path("registry/denylist.yaml"))
+    denied = []
+    for tool in tools:
+        reason = check_tool(tool, denylist)
+        if reason:
+            denied.append((tool.name, reason))
+
+    assert denied == [], f"Denied tools found: {denied}"

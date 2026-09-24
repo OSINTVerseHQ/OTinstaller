@@ -2,6 +2,8 @@
 
 The registry is a YAML file with a top-level `tools` list. Each entry describes a command-line tool that otinstaller can install and run.
 
+The bundled registry ships with 40 verified tools. See docs/TAGGING.md for how capability, topic, and accepts tags were assigned.
+
 ## Tool fields
 
 | Field | Type | Required | Description |
