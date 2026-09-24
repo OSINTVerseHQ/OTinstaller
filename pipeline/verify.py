@@ -52,7 +52,7 @@ def load_verification_log(log_path: Path) -> set[str]:
     return tested
 
 
-def log_entry(log_path: Path, entry: dict[str, Any]) -> None:
+def append_log_entry(log_path: Path, entry: dict[str, Any]) -> None:
     with log_path.open("a") as f:
         f.write(json.dumps(entry, sort_keys=True) + "\n")
 
@@ -81,6 +81,35 @@ def git_clone(repo: str, dest: Path, timeout: int = 60) -> subprocess.CompletedP
     return run_cmd(["git", "clone", "--depth", "1", url, str(dest)], timeout=timeout)
 
 
+def _get_console_scripts_from_entry_points(venv: Path, package_name: str) -> list[str]:
+    """Read console scripts from installed package's entry_points.txt."""
+    pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    site_packages = venv / "lib" / pyver / "site-packages"
+    normalized = package_name.replace("-", "_")
+    dist_info_dirs = list(site_packages.glob(f"{normalized}-*.dist-info"))
+    if not dist_info_dirs:
+        # Try with hyphens
+        dist_info_dirs = list(site_packages.glob(f"{package_name.replace('_', '-')}-*.dist-info"))
+    for dist_info in dist_info_dirs:
+        entry_points_file = dist_info / "entry_points.txt"
+        if entry_points_file.exists():
+            console_scripts = []
+            in_console_section = False
+            for line in entry_points_file.read_text().splitlines():
+                line = line.strip()
+                if line == "[console_scripts]":
+                    in_console_section = True
+                    continue
+                if line.startswith("[") and in_console_section:
+                    break
+                if in_console_section and line and "=" in line:
+                    script_name = line.split("=")[0].strip()
+                    console_scripts.append(script_name)
+            if console_scripts:
+                return console_scripts
+    return []
+
+
 def detect_entrypoint(
     candidate_name: str,
     repo: str,
@@ -91,6 +120,14 @@ def detect_entrypoint(
 ) -> dict[str, str] | None:
     scripts = list(venv_bin.glob("*"))
     script_names = [s.name for s in scripts if s.is_file() and os.access(s, os.X_OK)]
+
+    # First, try to get console scripts from installed package metadata
+    if install_method == "pip-repo" and candidate_pip_package:
+        venv = venv_bin.parent
+        console_scripts = _get_console_scripts_from_entry_points(venv, candidate_pip_package)
+        for script in console_scripts:
+            if script in script_names:
+                return {"command": script}
 
     # Exact match
     if candidate_name in script_names:
@@ -349,6 +386,7 @@ def main() -> int:
     args = parser.parse_args()
 
     candidates = load_candidates()
+
     tested = load_verification_log(LOG_PATH) if args.resume else set()
 
     if args.resume:
@@ -422,7 +460,7 @@ def main() -> int:
                     stats["failed"] += 1
                 failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
 
-            log_entry(LOG_PATH, log_data)
+            append_log_entry(LOG_PATH, log_data)
             print(f"  {log_data['outcome']}: {reason}")
 
         finally:
@@ -430,6 +468,39 @@ def main() -> int:
 
     if registry_entries:
         write_registry(registry_entries)
+
+    # Also generate registry from full log (for resumed runs)
+    all_passed = []
+    if LOG_PATH.exists():
+        with LOG_PATH.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    if entry.get("outcome") == "passed":
+                        all_passed.append(entry)
+                except json.JSONDecodeError:
+                    continue
+
+    # Build registry entries for all passed tools from log
+    candidates_by_name = {c["name"]: c for c in candidates}
+    full_registry_entries = []
+    for log_entry in all_passed:
+        name = log_entry["name"]
+        candidate = candidates_by_name.get(name)
+        if not candidate:
+            continue
+        try:
+            registry_entry = build_registry_entry(candidate, log_entry)
+            parse_tool(registry_entry)
+            full_registry_entries.append(registry_entry)
+        except RegistryError as e:
+            print(f"  WARNING: registry validation failed for {name} (from log): {e}")
+
+    if full_registry_entries:
+        write_registry(full_registry_entries)
 
     print("\n=== Verification Summary ===")
     print(f"Total candidates: {len(candidates)}")

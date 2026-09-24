@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +11,7 @@ import pytest
 
 from otinstaller.registry import RegistryError, parse_tool
 from pipeline.verify import (
+    _get_console_scripts_from_entry_points,
     build_registry_entry,
     cleanup_sandbox,
     detect_entrypoint,
@@ -78,6 +80,76 @@ class TestDetectEntrypoint:
 
             result = detect_entrypoint("unknown", "org/unknown", venv_bin, "pip-repo", None)
             assert result is None
+
+    def test_entrypoint_from_entry_points_txt(self):
+        """Test entrypoint detection via entry_points.txt when script
+        name differs from candidate name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            venv = Path(tmpdir) / "venv"
+            venv_bin = venv / "bin"
+            venv_bin.mkdir(parents=True)
+            pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            site_packages = venv / "lib" / pyver / "site-packages"
+            dist_info = site_packages / "sherlock_project-0.16.2.dist-info"
+            dist_info.mkdir(parents=True)
+            (dist_info / "entry_points.txt").write_text(
+                "[console_scripts]\nsherlock = sherlock_project.__main__:main\n"
+            )
+
+            # Create the actual binary in venv/bin (as pip would)
+            (venv_bin / "sherlock").write_text("#!/bin/sh\necho test")
+            (venv_bin / "sherlock").chmod(0o755)
+
+            # Candidate name is "sherlock" but package is "sherlock-project"
+            result = detect_entrypoint(
+                "sherlock", "sherlock-project/sherlock", venv_bin, "pip-repo", "sherlock-project"
+            )
+            assert result == {"command": "sherlock"}
+
+    def test_entrypoint_from_entry_points_txt_different_name(self):
+        """Test entrypoint detection when console script name differs from candidate name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            venv = Path(tmpdir) / "venv"
+            venv_bin = venv / "bin"
+            venv_bin.mkdir(parents=True)
+            pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            site_packages = venv / "lib" / pyver / "site-packages"
+            dist_info = site_packages / "my_package-1.0.dist-info"
+            dist_info.mkdir(parents=True)
+            # Console script name is "actual-command" but candidate name is "mytool"
+            (dist_info / "entry_points.txt").write_text(
+                "[console_scripts]\nactual-command = my_package:main\n"
+            )
+
+            (venv_bin / "actual-command").write_text("#!/bin/sh\necho test")
+            (venv_bin / "actual-command").chmod(0o755)
+
+            result = detect_entrypoint("mytool", "org/mytool", venv_bin, "pip-repo", "my-package")
+            assert result == {"command": "actual-command"}
+
+    def test_get_console_scripts_from_entry_points(self):
+        """Test _get_console_scripts_from_entry_points function directly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            venv = Path(tmpdir) / "venv"
+            pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            site_packages = venv / "lib" / pyver / "site-packages"
+            dist_info = site_packages / "test_pkg-1.0.dist-info"
+            dist_info.mkdir(parents=True)
+            (dist_info / "entry_points.txt").write_text(
+                "[console_scripts]\ncmd1 = test_pkg:main\ncmd2 = test_pkg:other\n"
+            )
+
+            scripts = _get_console_scripts_from_entry_points(venv, "test-pkg")
+            assert "cmd1" in scripts
+            assert "cmd2" in scripts
+            assert len(scripts) == 2
+
+    def test_get_console_scripts_from_entry_points_missing(self):
+        """Test _get_console_scripts_from_entry_points with missing dist-info."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            venv = Path(tmpdir) / "venv"
+            scripts = _get_console_scripts_from_entry_points(venv, "nonexistent")
+            assert scripts == []
 
 
 class TestRunSmokeTest:

@@ -5,7 +5,7 @@
   license: MIT
   detected_install_method: pip-repo
   likely_installable: true
-  candidate_pip_package: sherlock
+  candidate_pip_package: sherlock-project
   default_branch: master
   discovered_at: '2026-09-23T20:25:27.701816+00:00'
 - name: maigret
@@ -58,7 +58,7 @@
   license: GPL-2.0
   detected_install_method: pip-repo
   likely_installable: true
-  candidate_pip_package: theharvester
+  candidate_pip_package: null
   default_branch: master
   discovered_at: '2026-09-23T20:25:32.325708+00:00'
 - name: ghosttrack
