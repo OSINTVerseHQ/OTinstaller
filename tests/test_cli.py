@@ -69,6 +69,7 @@ def test_stub_commands_exit_2(cmd_args):
 
 def test_run_with_extra_args(monkeypatch, tmp_path):
     monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setenv(
         "OTINSTALLER_REGISTRY",
         str(
@@ -90,6 +91,7 @@ def test_run_with_extra_args(monkeypatch, tmp_path):
     # Run init first
     runner.invoke(app, ["init", "--yes"])
 
+    # Use single -- (Click strips it, registry-based parsing handles the rest)
     result = runner.invoke(app, ["run", "sherlock", "--", "someuser", "--timeout", "5"])
     assert result.exit_code == 1
     assert "not installed" in result.output
@@ -1018,3 +1020,164 @@ def test_doctor_home_not_writable(monkeypatch, tmp_path):
 
     # Restore permissions for cleanup
     home.chmod(0o755)
+
+
+def test_run_single_tool_still_works(monkeypatch, tmp_path):
+    """Single tool run behaves as before (no regression)."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    }
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        if name == "sherlock":
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            return InstalledTool(
+                name="sherlock",
+                version="1.0",
+                method="pip",
+                source="sherlock-project",
+                ref=None,
+                commit=None,
+                entry_command="sherlock",
+                entry_script=None,
+                installed_at=now,
+                updated_at=now,
+            )
+        return None
+
+    mock_meta = type(
+        "Meta",
+        (),
+        {
+            "exit_code": 0,
+            "output_path": ("sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"),
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": (
+                    "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"
+                ),
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
+            with patch("otinstaller.cli.write_meta") as _:
+                # Use single -- (Click strips it, registry-based parsing handles the rest)
+                result = runner.invoke(app, ["run", "sherlock", "--", "someuser", "--timeout", "5"])
+                assert result.exit_code == 0
+                assert "tool exited 0" in result.output
+                mock_run_tool.assert_called_once()
+                call_args = mock_run_tool.call_args
+                assert call_args[0][2] == ["someuser", "--timeout", "5"]
+
+
+def test_run_multiple_tool_names(monkeypatch, tmp_path):
+    """Multiple tool names are parsed correctly from ctx.args."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    mock_meta = type(
+        "Meta",
+        (),
+        {
+            "exit_code": 0,
+            "output_path": "{}/unspecified/20240101-000000_{}_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "test/unspecified/20240101-000000_test_unspecified_abc123.txt",
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
+            with patch("otinstaller.cli.write_meta") as _:
+                # Use single -- (Click strips it, registry-based parsing handles the rest)
+                result = runner.invoke(
+                    app, ["run", "sherlock", "maigret", "--", "someuser", "--timeout", "5"]
+                )
+                assert result.exit_code == 0
+                assert mock_run_tool.call_count == 2
+            # Verify tool_names and extra_args were parsed correctly
+            calls = mock_run_tool.call_args_list
+            assert calls[0][0][0].name == "sherlock"
+            assert calls[1][0][0].name == "maigret"
+            assert calls[0][0][2] == ["someuser", "--timeout", "5"]
+            assert calls[1][0][2] == ["someuser", "--timeout", "5"]
