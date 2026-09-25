@@ -454,8 +454,7 @@ def remove(
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def run(
-    tool: Annotated[str, typer.Argument(help="Tool name to run")],
-    extra_args: Annotated[list[str] | None, typer.Argument()] = None,
+    ctx: typer.Context,
     case: Annotated[
         str | None, typer.Option("--case", help="Group runs under a named case")
     ] = None,
@@ -467,47 +466,104 @@ def run(
     ] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
 ):
-    """Run a tool with arguments passed through after --."""
-    if extra_args is None:
+    """Run one or more tools with arguments passed through after --.
+
+    If a target argument after -- happens to match a registered tool name,
+    it will be interpreted as an additional tool to run. Use --target to
+    disambiguate in that case.
+    """
+    raw_args = list(ctx.args)
+    # Click strips the -- separator when allow_extra_args=True, so it won't be in ctx.args.
+    # Parse tool names from the registry: collect known tool names until first non-tool.
+    if "--" in raw_args:
+        # Should not happen with allow_extra_args=True, but handle just in case
+        sep_index = raw_args.index("--")
+        tool_names = raw_args[:sep_index]
+        extra_args = raw_args[sep_index + 1 :]
+    else:
+        tools_registry = _load_registry(False)
+        known_tools = {t.name for t in tools_registry}
+        tool_names = []
         extra_args = []
+        for arg in raw_args:
+            if arg in known_tools:
+                tool_names.append(arg)
+            else:
+                # First non-tool arg and everything after are extra args
+                idx = raw_args.index(arg)
+                extra_args = raw_args[idx:]
+                break
+        else:
+            # All args were tool names
+            tool_names = raw_args
+            extra_args = []
 
     if sys.platform != "linux":
         typer.echo("error: otinstaller currently supports Linux only", err=True)
         raise typer.Exit(code=1)
 
     tools_registry = _load_registry(False)
-    t = find_tool(tools_registry, tool)
-    if not t:
-        suggestions = suggest_names(tools_registry, tool)
-        msg = f"error: unknown tool '{tool}'"
-        if suggestions:
-            msg += f"\ndid you mean: {', '.join(suggestions)}?"
-        typer.echo(msg, err=True)
+
+    # Resolve all tools
+    tools = []
+    errors = []
+    for name in tool_names:
+        t = find_tool(tools_registry, name)
+        if not t:
+            suggestions = suggest_names(tools_registry, name)
+            msg = f"error: unknown tool '{name}'"
+            if suggestions:
+                msg += f"\ndid you mean: {', '.join(suggestions)}?"
+            errors.append(msg)
+        else:
+            tools.append((name, t))
+
+    if errors:
+        for err in errors:
+            typer.echo(err, err=True)
         raise typer.Exit(code=1)
 
-    # Check if tool is installed
+    # Check if all tools are installed
     from otinstaller.state import get_installed
 
-    installed = get_installed(tool)
-    if not installed:
-        typer.echo(
-            f"error: {tool} is not installed, run 'otinstaller install {tool}' first",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    installed_tools = {}
+    for name, t in tools:
+        installed = get_installed(name)
+        if not installed:
+            typer.echo(
+                f"error: {name} is not installed, run 'otinstaller install {name}' first",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        installed_tools[name] = installed
 
-    root = get_tools_dir() / tool
-
-    # Determine target
-    run_target = target if target is not None else (extra_args[0] if extra_args else "unspecified")
-
-    # Run with status spinner unless --no-color or not a terminal
+    # Run each tool
     console = _make_console(no_color)
     use_spinner = not no_color and sys.stdout.isatty()
 
-    try:
-        if use_spinner:
-            with console.status(f"running {tool}..."):
+    for name, t in tools:
+        installed = installed_tools[name]
+        root = get_tools_dir() / name
+
+        # Determine target
+        run_target = (
+            target if target is not None else (extra_args[0] if extra_args else "unspecified")
+        )
+
+        try:
+            if use_spinner:
+                with console.status(f"running {name}..."):
+                    meta = run_tool(
+                        t,
+                        root,
+                        extra_args,
+                        target=run_target,
+                        case=case,
+                        env_overrides=None,
+                        stream=verbose,
+                    )
+            else:
+                typer.echo(f"running {name}...")
                 meta = run_tool(
                     t,
                     root,
@@ -517,40 +573,29 @@ def run(
                     env_overrides=None,
                     stream=verbose,
                 )
-        else:
-            typer.echo(f"running {tool}...")
-            meta = run_tool(
-                t,
-                root,
-                extra_args,
-                target=run_target,
-                case=case,
-                env_overrides=None,
-                stream=verbose,
-            )
 
-        # Fill in tool_version from installed state and rewrite meta
-        meta.tool_version = installed.version
-        results_dir = get_results_dir()
-        meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
-        write_meta(meta, meta_path)
+            # Fill in tool_version from installed state and rewrite meta
+            meta.tool_version = installed.version
+            results_dir = get_results_dir()
+            meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
+            write_meta(meta, meta_path)
 
-        typer.echo(f"tool exited {meta.exit_code}")
-        typer.echo(f"saved to {meta.output_path}")
-        typer.echo(f"sha256  {meta.sha256}")
+            typer.echo(f"tool exited {meta.exit_code}")
+            typer.echo(f"saved to {meta.output_path}")
+            typer.echo(f"sha256  {meta.sha256}")
 
-        # Exit with tool's exit code
-        if meta.exit_code != 0:
-            raise typer.Exit(code=meta.exit_code)
+            # Exit with tool's exit code if non-zero
+            if meta.exit_code != 0:
+                raise typer.Exit(code=meta.exit_code)
 
-    except KeyboardInterrupt:
-        msg = "interrupted, partial output saved to "
-        if "meta" in locals() and hasattr(meta, "output_path"):
-            msg += meta.output_path
-        else:
-            msg += "unknown"
-        typer.echo(msg, err=True)
-        raise typer.Exit(code=130) from None
+        except KeyboardInterrupt:
+            msg = "interrupted, partial output saved to "
+            if "meta" in locals() and hasattr(meta, "output_path"):
+                msg += meta.output_path
+            else:
+                msg += "unknown"
+            typer.echo(msg, err=True)
+            raise typer.Exit(code=130) from None
 
 
 @app.command()

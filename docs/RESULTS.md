@@ -4,6 +4,9 @@ Every run of a tool with `otinstaller run` saves its raw output to disk automati
 with a sidecar `.meta.json` file recording exactly what happened. Runs can optionally
 be grouped into a named case folder.
 
+If a target argument after `--` happens to match a registered tool name, it will be
+interpreted as an additional tool to run. Use `--target` explicitly to disambiguate.
+
 ## Without --case
 
 ```
