@@ -9,3 +9,4 @@
 - Each tool gets its own virtualenv; no shared environments.
 - Tools run on the same Python that runs otinstaller.
 - otinstaller supports Linux only; install, remove, and run commands check sys.platform and exit with an error on other platforms.
+- airecon passed verification but was deferred from launch because it requires Docker and Ollama, which otinstaller cannot check for yet; revisit once a `requires` field / dependency-check exists in the registry schema.
