@@ -527,7 +527,7 @@ def run(
     from otinstaller.state import get_installed
 
     installed_tools = {}
-    for name, t in tools:
+    for name, _t in tools:
         installed = get_installed(name)
         if not installed:
             typer.echo(
