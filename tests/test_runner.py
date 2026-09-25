@@ -106,6 +106,7 @@ async def test_run_tools_parallel_concurrent(tmp_path):
         elapsed = time.monotonic() - start_wall
 
     # Should complete in ~0.3-0.4s (concurrent), not ~0.9s (sequential)
+    print(f"test_run_tools_parallel_concurrent: elapsed={elapsed:.2f}s")
     assert elapsed < 0.6, f"Expected concurrent execution (~0.3s), took {elapsed:.2f}s"
     assert len(results) == 3
     assert all(r.status == "complete" for r in results)
@@ -167,6 +168,7 @@ async def test_run_tools_parallel_limited_concurrency(tmp_path):
         elapsed = time.monotonic() - start_wall
 
     # Should take ~0.9s (sequential: 3 * 0.3s)
+    print(f"test_run_tools_parallel_limited_concurrency: elapsed={elapsed:.2f}s")
     assert elapsed >= 0.8, f"Expected sequential execution (~0.9s), took {elapsed:.2f}s"
     assert len(results) == 3
     assert all(r.status == "complete" for r in results)
