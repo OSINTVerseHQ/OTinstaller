@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 import sys
@@ -126,3 +127,76 @@ def run_tool(
 
     write_meta(meta, meta_path)
     return meta
+
+
+async def run_tools_parallel(
+    tools: list[Tool],
+    roots: dict[str, Path],
+    extra_args: list[str],
+    *,
+    target: str | None,
+    case: str | None,
+    max_parallel: int,
+    stream: bool,
+) -> list[RunMeta]:
+    """Run multiple tools in parallel with a concurrency limit.
+
+    Each tool runs in its own thread via asyncio.to_thread, preserving the
+    exact behavior of run_tool. Returns results in the same order as the
+    input tools list.
+    """
+    semaphore = asyncio.Semaphore(max_parallel)
+
+    async def run_one(tool: Tool) -> RunMeta:
+        root = roots[tool.name]
+        async with semaphore:
+            return await asyncio.to_thread(
+                run_tool,
+                tool,
+                root,
+                extra_args,
+                target=target,
+                case=case,
+                env_overrides=None,
+                stream=stream,
+            )
+
+    # Use gather with return_exceptions=True so one failure doesn't cancel others
+    results = await asyncio.gather(*[run_one(t) for t in tools], return_exceptions=True)
+
+    # Convert exceptions to failed RunMeta objects
+    final_results: list[RunMeta] = []
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            # Build a minimal failed RunMeta for the exception case
+            tool = tools[i]
+            output_path, meta_path = results_paths(tool.name, target or "unspecified", case)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(f"Exception: {result}")
+
+            from datetime import datetime, timezone
+
+            from otinstaller.results import hash_file
+
+            ended_at = datetime.now(timezone.utc).isoformat()
+            meta = RunMeta(
+                command=["<exception>"],
+                tool=tool.name,
+                tool_version="",
+                target=target or "unspecified",
+                case=case,
+                started_at=ended_at,
+                ended_at=ended_at,
+                duration_seconds=0.0,
+                exit_code=-1,
+                status="failed",
+                output_path=str(output_path.relative_to(get_results_dir())),
+                sha256=hash_file(output_path),
+                bytes=output_path.stat().st_size,
+            )
+            write_meta(meta, meta_path)
+            final_results.append(meta)
+        else:
+            final_results.append(result)
+
+    return final_results

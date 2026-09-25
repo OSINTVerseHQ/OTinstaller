@@ -25,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "ruff",
 ]
 pipeline = [
@@ -49,3 +50,4 @@ testpaths = ["tests"]
 markers = [
     "network: tests that require network access (set RUN_NETWORK_TESTS=1 to run)",
 ]
+asyncio_mode = "auto"
