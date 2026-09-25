@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,pipeline]"
       - name: Ruff check
         run: ruff check .
       - name: Ruff format check
@@ -38,7 +38,7 @@ jobs:
       - name: Create virtualenv
         run: python3 -m venv .venv
       - name: Install project
-        run: .venv/bin/pip install -e ".[dev]"
+        run: .venv/bin/pip install -e ".[dev,pipeline]"
       - name: Ruff check
         run: .venv/bin/ruff check .
       - name: Ruff format check
@@ -60,7 +60,7 @@ jobs:
       - name: Create virtualenv
         run: python -m venv .venv
       - name: Install project
-        run: .venv/bin/pip install -e ".[dev]"
+        run: .venv/bin/pip install -e ".[dev,pipeline]"
       - name: Ruff check
         run: .venv/bin/ruff check .
       - name: Ruff format check
