@@ -810,10 +810,92 @@ def keys_check(
 
 
 @app.command()
-def resume():
-    """Resume interrupted jobs."""
-    typer.echo("not implemented yet")
-    raise typer.Exit(code=2)
+def resume(
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Detect and report interrupted jobs from crashes."""
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.state import _is_pid_running, list_jobs, scan_orphaned_jobs
+
+    orphaned = scan_orphaned_jobs()
+    all_jobs = list_jobs()
+
+    if json_output:
+        import json
+
+        output = {
+            "orphaned": [
+                {
+                    "job_id": job.job_id,
+                    "job_type": job.job_type,
+                    "tool": job.tool,
+                    "target": job.target,
+                    "started_at": job.started_at,
+                    "pid": job.pid,
+                }
+                for job in orphaned
+            ],
+            "all_jobs": [
+                {
+                    "job_id": job.job_id,
+                    "job_type": job.job_type,
+                    "tool": job.tool,
+                    "target": job.target,
+                    "started_at": job.started_at,
+                    "pid": job.pid,
+                    "status": "orphaned" if not _is_pid_running(job.pid) else "running",
+                }
+                for job in all_jobs
+            ],
+        }
+        typer.echo(json.dumps(output, indent=2))
+        if orphaned:
+            raise typer.Exit(code=1)
+        return
+
+    # Human-readable output
+    if not all_jobs:
+        typer.echo("nothing to resume")
+        return
+
+    orphaned = [j for j in all_jobs if not _is_pid_running(j.pid)]
+
+    if not orphaned:
+        typer.echo("nothing to resume")
+        return
+
+    for job in orphaned:
+        target = job.target if job.target else "none"
+        job_type = job.job_type
+        tool = job.tool
+        started = job.started_at
+        msg = f"found interrupted {job_type}: {tool} (started {started}, target: {target})"
+        typer.echo(msg)
+
+    if json_output:
+        import json
+
+        output = {
+            "orphaned": [
+                {
+                    "job_id": job.job_id,
+                    "job_type": job.job_type,
+                    "tool": job.tool,
+                    "target": job.target,
+                    "started_at": job.started_at,
+                    "pid": job.pid,
+                }
+                for job in orphaned
+            ],
+        }
+        typer.echo(json.dumps(output, indent=2))
+
+    raise typer.Exit(code=1)
 
 
 @app.command()
