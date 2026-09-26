@@ -170,21 +170,26 @@ def test_network_crash_detection_marker_file():
         assert "pid" in marker
         assert marker["pid"] == proc.pid
 
-        # Run resume and verify it reports the interrupted install
+        # Run resume and verify it resumes the interrupted install
         result = runner.invoke(app, ["resume"])
-        assert result.exit_code == 1  # orphaned jobs found -> exit 1
-        assert "found interrupted install: sherlock" in result.output
-        assert "target: none" in result.output
+        assert result.exit_code == 0  # install resumed successfully
+        assert "resuming install: sherlock..." in result.output
+        assert "installed sherlock" in result.output
+        assert "1 installs resumed, 0 runs reported, 0 skipped (still running)" in result.output
 
-        # Also test --json output
+        # Verify marker file is removed
+        marker_files = [f for f in os.listdir(jobs_dir) if f.endswith(".json")]
+        assert len(marker_files) == 0, f"Expected 0 marker files after resume, found {marker_files}"
+
+        # Verify tool is installed
+        sherlock_dir = os.path.join(tmp_home, "tools", "sherlock")
+        assert os.path.exists(sherlock_dir), "sherlock tool directory should exist after resume"
+
+        # Also test --json output (now shows empty since job is resolved)
         result = runner.invoke(app, ["resume", "--json"])
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         import json
 
         output = json.loads(result.output)
-        assert len(output["orphaned"]) == 1
-        assert output["orphaned"][0]["job_type"] == "install"
-        assert output["orphaned"][0]["tool"] == "sherlock"
-        assert output["orphaned"][0]["target"] is None
-        assert len(output["all_jobs"]) == 1
-        assert output["all_jobs"][0]["status"] == "orphaned"
+        assert len(output["orphaned"]) == 0
+        assert len(output["all_jobs"]) == 0

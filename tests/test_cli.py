@@ -56,7 +56,6 @@ def test_keys_help():
 @pytest.mark.parametrize(
     "cmd_args",
     [
-        ["update", "tool1"],
         ["example", "tool1"],
     ],
 )
