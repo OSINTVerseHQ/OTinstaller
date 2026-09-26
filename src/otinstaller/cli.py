@@ -812,8 +812,11 @@ def keys_check(
 @app.command()
 def resume(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Report what would be done without making changes")
+    ] = False,
 ):
-    """Detect and report interrupted jobs from crashes."""
+    """Detect and resume interrupted jobs from crashes."""
     import sys
 
     if sys.platform != "linux":
@@ -863,39 +866,113 @@ def resume(
         typer.echo("nothing to resume")
         return
 
+    running_jobs = [j for j in all_jobs if _is_pid_running(j.pid)]
     orphaned = [j for j in all_jobs if not _is_pid_running(j.pid)]
 
-    if not orphaned:
+    if not orphaned and not running_jobs:
         typer.echo("nothing to resume")
         return
 
-    for job in orphaned:
-        target = job.target if job.target else "none"
-        job_type = job.job_type
-        tool = job.tool
-        started = job.started_at
-        msg = f"found interrupted {job_type}: {tool} (started {started}, target: {target})"
-        typer.echo(msg)
+    installs_resumed = 0
+    runs_reported = 0
+    skipped_running = 0
+    install_failed = False
 
-    if json_output:
-        import json
+    if dry_run:
+        # Dry run: just report what would happen
+        for job in orphaned:
+            target = job.target if job.target else "none"
+            job_type = job.job_type
+            tool = job.tool
+            started = job.started_at
+            if job_type == "install":
+                typer.echo(f"would resume install: {tool} (started {started})")
+                installs_resumed += 1
+            else:
+                cmd = f"otinstaller run {tool} -- {target}"
+                base = f"would report interrupted run: {tool} (target: {target})"
+                msg = f"{base} - rerun manually with: {cmd}"
+                typer.echo(msg)
+                runs_reported += 1
 
-        output = {
-            "orphaned": [
-                {
-                    "job_id": job.job_id,
-                    "job_type": job.job_type,
-                    "tool": job.tool,
-                    "target": job.target,
-                    "started_at": job.started_at,
-                    "pid": job.pid,
-                }
-                for job in orphaned
-            ],
-        }
-        typer.echo(json.dumps(output, indent=2))
+        for job in running_jobs:
+            target = job.target if job.target else "none"
+            tool = job.tool
+            typer.echo(f"possibly still running: {tool} (pid {job.pid}) - skipping")
+            skipped_running += 1
+    else:
+        # Actually process orphaned jobs
+        from otinstaller.config import get_tools_dir
+        from otinstaller.installer import AlreadyInstalled, InstallError, install_tool
+        from otinstaller.installer.core import safe_rmtree
+        from otinstaller.registry import default_registry_path, find_tool, load_registry
+        from otinstaller.state import job_end
 
-    raise typer.Exit(code=1)
+        # Load registry once
+        tools_registry = load_registry(default_registry_path())
+
+        for job in orphaned:
+            target = job.target if job.target else "none"
+            job_type = job.job_type
+            tool_name = job.tool
+
+            if job_type == "install":
+                typer.echo(f"resuming install: {tool_name}...")
+
+                # Clean up the half-finished install directory
+                tool_root = get_tools_dir() / tool_name
+                if tool_root.exists():
+                    safe_rmtree(tool_root)
+
+                # Remove the job marker
+                job_end(job.job_id)
+
+                # Find the tool in registry
+                tool = find_tool(tools_registry, tool_name)
+                if not tool:
+                    typer.echo(f"error: {tool_name}: tool not found in registry")
+                    install_failed = True
+                    continue
+
+                # Retry the install
+                try:
+                    result = install_tool(tool, force=True)
+                    typer.echo(f"installed {result.name} {result.version}")
+                    installs_resumed += 1
+                except AlreadyInstalled:
+                    typer.echo(f"{tool_name} is already installed (use --force to reinstall)")
+                    install_failed = True
+                except InstallError as e:
+                    typer.echo(f"error: {tool_name}: {e}")
+                    install_failed = True
+                except Exception as e:
+                    typer.echo(f"error: {tool_name}: {e}")
+                    install_failed = True
+
+            else:  # run job
+                cmd = f"otinstaller run {tool_name} -- {target}"
+                base = f"found interrupted run: {tool_name} (target: {target})"
+                msg = f"{base} - rerun manually with: {cmd}"
+                typer.echo(msg)
+                job_end(job.job_id)
+                runs_reported += 1
+
+        for job in running_jobs:
+            target = job.target if job.target else "none"
+            tool = job.tool
+            typer.echo(f"possibly still running: {tool} (pid {job.pid}) - skipping")
+            skipped_running += 1
+
+    # Summary line
+    parts = [
+        f"{installs_resumed} installs resumed",
+        f"{runs_reported} runs reported",
+        f"{skipped_running} skipped (still running)",
+    ]
+    typer.echo(", ".join(parts))
+
+    if install_failed:
+        raise typer.Exit(code=1)
 
 
 @app.command()
