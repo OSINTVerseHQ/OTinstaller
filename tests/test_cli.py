@@ -1149,18 +1149,20 @@ def test_run_multiple_tool_names(monkeypatch, tmp_path):
             updated_at=now,
         )
 
+    fake_path = "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"
+
     meta1 = type(
         "Meta",
         (),
         {
             "tool": "sherlock",
             "exit_code": 0,
-            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "output_path": fake_path,
             "sha256": "abc123",
             "tool_version": "",
             "to_dict": lambda self: {
                 "exit_code": 0,
-                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "output_path": fake_path,
                 "sha256": "abc123",
                 "tool_version": "",
             },
@@ -1251,17 +1253,19 @@ def test_run_parallel_single_tool_uses_single_path(monkeypatch, tmp_path):
             )
         return None
 
+    fake_path = "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"
+
     mock_meta = type(
         "Meta",
         (),
         {
             "exit_code": 0,
-            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "output_path": fake_path,
             "sha256": "abc123",
             "tool_version": "",
             "to_dict": lambda self: {
                 "exit_code": 0,
-                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "output_path": fake_path,
                 "sha256": "abc123",
                 "tool_version": "",
             },
@@ -1329,6 +1333,8 @@ def test_run_parallel_multiple_tools_uses_parallel_path(monkeypatch, tmp_path):
             updated_at=now,
         )
 
+    fake_path = "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"
+
     # Create mock metas with proper tool attribute
     meta1 = type(
         "Meta",
@@ -1336,12 +1342,12 @@ def test_run_parallel_multiple_tools_uses_parallel_path(monkeypatch, tmp_path):
         {
             "tool": "sherlock",
             "exit_code": 0,
-            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "output_path": fake_path,
             "sha256": "abc123",
             "tool_version": "",
             "to_dict": lambda self: {
                 "exit_code": 0,
-                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "output_path": fake_path,
                 "sha256": "abc123",
                 "tool_version": "",
             },
@@ -1431,18 +1437,20 @@ def test_run_parallel_custom_parallel_value(monkeypatch, tmp_path):
             updated_at=now,
         )
 
+    fake_path = "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"
+
     meta1 = type(
         "Meta",
         (),
         {
             "tool": "sherlock",
             "exit_code": 0,
-            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "output_path": fake_path,
             "sha256": "abc123",
             "tool_version": "",
             "to_dict": lambda self: {
                 "exit_code": 0,
-                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "output_path": fake_path,
                 "sha256": "abc123",
                 "tool_version": "",
             },
