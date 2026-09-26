@@ -15,6 +15,8 @@ from otinstaller.state import (
     InstalledTool,
     add_installed,
     get_installed,
+    job_end,
+    job_start,
     remove_installed,
 )
 
@@ -112,6 +114,9 @@ def install_tool(
     if log.exists():
         log.unlink()
 
+    # Record job start for crash detection
+    marker = job_start("install", tool.name)
+
     try:
         if tool.install.method == "pip":
             install_pip(tool, root, log, stream=stream)
@@ -165,12 +170,14 @@ def install_tool(
         )
 
         add_installed(installed)
+        job_end(marker.job_id)
         return installed
 
     except BaseException:
         # Clean up on any failure
         if root.exists():
             safe_rmtree(root)
+        job_end(marker.job_id)
         raise
 
 

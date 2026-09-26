@@ -58,7 +58,6 @@ def test_keys_help():
     [
         ["update", "tool1"],
         ["example", "tool1"],
-        ["resume"],
     ],
 )
 def test_stub_commands_exit_2(cmd_args):

@@ -14,6 +14,7 @@ from otinstaller.installer.venv import venv_bin, venv_python
 from otinstaller.keys import keys_for_tool, load_env_file, missing_required_keys
 from otinstaller.registry import Tool
 from otinstaller.results import RunMeta, hash_file, results_paths, write_meta
+from otinstaller.state import job_end, job_start
 
 
 def build_command(tool: Tool, root: Path, extra_args: list[str]) -> list[str]:
@@ -74,6 +75,9 @@ def run_tool(
     if missing:
         sys.stderr.write(f"warning: {tool.name} is missing required key(s): {', '.join(missing)}\n")
 
+    # Record job start for crash detection
+    marker = job_start("run", tool.name, target)
+
     # Start timing
     started_at = datetime.now(timezone.utc)
     started_at_str = started_at.isoformat()
@@ -119,6 +123,7 @@ def run_tool(
             pass
         proc.wait()
         exit_code = -9
+        job_end(marker.job_id)
         raise
 
     ended_at = datetime.now(timezone.utc)
@@ -157,6 +162,7 @@ def run_tool(
     )
 
     write_meta(meta, meta_path)
+    job_end(marker.job_id)
     return meta
 
 
