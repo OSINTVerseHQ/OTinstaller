@@ -1919,7 +1919,7 @@ def test_keys_check_no_keys_set(monkeypatch, tmp_path):
         assert "these tools need keys you don't have" in result.output
         assert "sherlock: missing SHODAN_API_KEY" in result.output
         assert "maigret: missing HUNTER_API_KEY" in result.output
-        # SHODAN_API_KEY is optional for maigret, so it appears in coverage hints, not in missing required keys
+        # SHODAN_API_KEY is optional for maigret - shown in coverage hints, not as missing
         assert "Adding SHODAN_API_KEY would unlock 1 more tool(s)" in result.output
 
 
