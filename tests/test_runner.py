@@ -1,6 +1,8 @@
 """Runner tests."""
 
+import tempfile
 import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,7 +11,11 @@ from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
 from otinstaller.runner import run_tool, run_tools_parallel
 
 
-def make_fake_tool(name: str) -> Tool:
+def make_fake_tool(
+    name: str,
+    required: tuple[str, ...] = (),
+    optional: tuple[str, ...] = (),
+) -> Tool:
     """Create a minimal fake tool for testing."""
     return Tool(
         name=name,
@@ -17,7 +23,7 @@ def make_fake_tool(name: str) -> Tool:
         description=f"Fake tool {name}",
         install=Install(method="pip", package=name),
         entrypoint=Entrypoint(command=name),
-        api_keys=ApiKeys(),
+        api_keys=ApiKeys(required=required, optional=optional),
     )
 
 
@@ -377,3 +383,157 @@ async def test_run_tools_parallel_sigint(monkeypatch, tmp_path):
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             except (ProcessLookupError, OSError):
                 pass
+
+
+@pytest.mark.asyncio
+async def test_run_tool_injects_only_declared_keys(tmp_path):
+    """A tool's subprocess environment includes only its declared keys."""
+    # Create a temp env file with multiple keys
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env_file = Path(tmpdir) / ".env"
+        env_file.write_text(
+            "REQUIRED_KEY=secret123\n"
+            "OPTIONAL_KEY=optional456\n"
+            "UNRELATED_KEY=should_not_appear\n"
+            "ANOTHER_KEY=also_should_not_appear\n"
+        )
+
+        with patch("otinstaller.runner.load_env_file") as mock_load_env:
+            mock_load_env.return_value = {
+                "REQUIRED_KEY": "secret123",
+                "OPTIONAL_KEY": "optional456",
+                "UNRELATED_KEY": "should_not_appear",
+                "ANOTHER_KEY": "also_should_not_appear",
+            }
+
+            with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+                mock_proc = MagicMock()
+                stdout_lines = [b"output line\n", b""]
+                mock_proc.stdout.readline = MagicMock(side_effect=stdout_lines)
+                mock_proc.wait.return_value = 0
+                mock_popen.return_value = mock_proc
+
+                tool = make_fake_tool(
+                    "testtool",
+                    required=("REQUIRED_KEY",),
+                    optional=("OPTIONAL_KEY",),
+                )
+                root = tmp_path / "testtool"
+                root.mkdir(parents=True)
+
+                run_tool(
+                    tool,
+                    root,
+                    ["arg1"],
+                    target="target1",
+                    case=None,
+                    env_overrides=None,
+                    stream=False,
+                )
+
+                # Verify only the declared keys were passed to the subprocess
+                mock_popen.assert_called_once()
+                call_kwargs = mock_popen.call_args.kwargs
+                env = call_kwargs["env"]
+                assert env.get("REQUIRED_KEY") == "secret123"
+                assert env.get("OPTIONAL_KEY") == "optional456"
+                assert "UNRELATED_KEY" not in env
+                assert "ANOTHER_KEY" not in env
+                # Ensure original environment is still there
+                assert "PATH" in env
+
+
+@pytest.mark.asyncio
+async def test_run_tool_missing_required_key_warns_but_runs(tmp_path):
+    """A missing required key prints a warning but does NOT prevent the subprocess from starting."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env_file = Path(tmpdir) / ".env"
+        env_file.write_text("OPTIONAL_KEY=optional456\n")  # Missing REQUIRED_KEY
+
+        with patch("otinstaller.runner.load_env_file") as mock_load_env:
+            mock_load_env.return_value = {"OPTIONAL_KEY": "optional456"}
+
+            with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+                mock_proc = MagicMock()
+                stdout_lines = [b"output line\n", b""]
+                mock_proc.stdout.readline = MagicMock(side_effect=stdout_lines)
+                mock_proc.wait.return_value = 0
+                mock_popen.return_value = mock_proc
+
+                tool = make_fake_tool(
+                    "testtool",
+                    required=("REQUIRED_KEY",),
+                    optional=("OPTIONAL_KEY",),
+                )
+                root = tmp_path / "testtool"
+                root.mkdir(parents=True)
+
+                run_tool(
+                    tool,
+                    root,
+                    ["arg1"],
+                    target="target1",
+                    case=None,
+                    env_overrides=None,
+                    stream=False,
+                )
+
+                # Should have printed warning to stderr
+                # The subprocess should still have started
+                mock_popen.assert_called_once()
+                call_kwargs = mock_popen.call_args.kwargs
+                env = call_kwargs["env"]
+                assert env.get("OPTIONAL_KEY") == "optional456"
+                assert "REQUIRED_KEY" not in env
+
+
+@pytest.mark.asyncio
+async def test_run_tool_does_not_leak_secrets_in_outputs(tmp_path):
+    """A fake secret value in env file does NOT appear in meta.json, logs, or stdout."""
+    secret_value = "SUPER_SECRET_API_KEY_12345"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env_file = Path(tmpdir) / ".env"
+        env_file.write_text(f"SECRET_KEY={secret_value}\n")
+
+        with patch("otinstaller.runner.load_env_file") as mock_load_env:
+            mock_load_env.return_value = {"SECRET_KEY": secret_value}
+
+            with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+                mock_proc = MagicMock()
+                stdout_lines = [b"output line\n", b""]
+                mock_proc.stdout.readline = MagicMock(side_effect=stdout_lines)
+                mock_proc.wait.return_value = 0
+                mock_popen.return_value = mock_proc
+
+                tool = make_fake_tool(
+                    "testtool",
+                    required=("SECRET_KEY",),
+                )
+                root = tmp_path / "testtool"
+                root.mkdir(parents=True)
+
+                meta = run_tool(
+                    tool,
+                    root,
+                    ["arg1"],
+                    target="target1",
+                    case=None,
+                    env_overrides=None,
+                    stream=False,
+                )
+
+                # Check meta.json does not contain the secret
+                assert secret_value not in str(meta.__dict__)
+
+                # The secret IS passed to the subprocess environment (this is intended behavior),
+                # but should not appear in meta.json, logs, or stdout
+                for call in mock_popen.call_args_list:
+                    # The secret should not be in the command args
+                    assert secret_value not in str(call.args)
+                    # The secret SHOULD be in the env dict passed to Popen
+                    assert call.kwargs.get("env", {}).get("SECRET_KEY") == secret_value
+
+                # The secret should not be in the meta.json file content
+                assert secret_value not in str(meta.output_path)
+                assert secret_value not in str(meta.sha256)

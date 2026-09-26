@@ -1,5 +1,6 @@
 """CLI tests."""
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -57,7 +58,6 @@ def test_keys_help():
     [
         ["update", "tool1"],
         ["example", "tool1"],
-        ["keys", "check"],
         ["resume"],
     ],
 )
@@ -148,7 +148,6 @@ def test_list_json(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["list", "--json"])
     assert result.exit_code == 0
-    import json
 
     data = json.loads(result.output)
     assert len(data) == 1
@@ -171,7 +170,6 @@ def test_list_empty_json(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["list", "--json"])
     assert result.exit_code == 0
-    import json
 
     data = json.loads(result.output)
     assert data == []
@@ -195,7 +193,6 @@ def test_list_installed_json(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["list", "--installed", "--json"])
     assert result.exit_code == 0
-    import json
 
     data = json.loads(result.output)
     assert data == []
@@ -311,7 +308,6 @@ def test_search_json(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["search", "username", "--json"])
     assert result.exit_code == 0
-    import json
 
     data = json.loads(result.output)
     assert len(data) == 1
@@ -413,7 +409,6 @@ def test_info_json(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["info", "sherlock", "--json"])
     assert result.exit_code == 0
-    import json
 
     data = json.loads(result.output)
     assert data["name"] == "sherlock"
@@ -780,7 +775,6 @@ def test_list_installed_table_with_data(monkeypatch, tmp_path):
 def test_list_installed_json_with_data(monkeypatch, tmp_path):
     """list --installed --json with data."""
     monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
-    import json
 
     from otinstaller.state import InstalledTool
 
@@ -1873,13 +1867,187 @@ def test_run_parallel_summary_line_correct(monkeypatch, tmp_path):
     )
 
     with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
-        with patch("otinstaller.cli.run_tool") as _:
-            with patch(
-                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2, meta3]
-            ) as _:
-                with patch("otinstaller.cli.write_meta") as _:
-                    result = runner.invoke(
-                        app, ["run", "sherlock", "maigret", "thirdtool", "--", "someuser"]
-                    )
-                    assert result.exit_code == 1
-                    assert "2 ok, 1 failed" in result.output
+        with patch("otinstaller.runner.run_tool", side_effect=[meta1, meta2, meta3]):
+            with patch("otinstaller.cli.write_meta") as _:
+                result = runner.invoke(
+                    app, ["run", "sherlock", "maigret", "thirdtool", "--", "someuser"]
+                )
+                assert result.exit_code == 1
+                assert "2 ok, 1 failed" in result.output
+
+
+def test_keys_check_no_keys_set(monkeypatch, tmp_path):
+    """keys check with no keys set shows all as missing."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "api_keys": {"required": ["SHODAN_API_KEY"]},
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "api_keys": {
+                            "required": ["HUNTER_API_KEY"],
+                            "optional": ["SHODAN_API_KEY"],
+                        },
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    with patch("otinstaller.keys.load_env_file", return_value={}):
+        result = runner.invoke(app, ["keys", "check"])
+        assert result.exit_code == 0
+        assert "✗ SHODAN_API_KEY" in result.output
+        assert "✗ HUNTER_API_KEY" in result.output
+        assert "these tools need keys you don't have" in result.output
+        assert "sherlock: missing SHODAN_API_KEY" in result.output
+        assert "maigret: missing HUNTER_API_KEY" in result.output
+        # SHODAN_API_KEY is optional for maigret, so it appears in coverage hints, not in missing required keys
+        assert "Adding SHODAN_API_KEY would unlock 1 more tool(s)" in result.output
+
+
+def test_keys_check_some_keys_set(monkeypatch, tmp_path):
+    """keys check with some keys set shows correct ✓/✗ per key."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "api_keys": {"required": ["SHODAN_API_KEY"]},
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "api_keys": {
+                            "required": ["HUNTER_API_KEY"],
+                            "optional": ["SHODAN_API_KEY"],
+                        },
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    with patch("otinstaller.keys.load_env_file", return_value={"SHODAN_API_KEY": "set_value"}):
+        result = runner.invoke(app, ["keys", "check"])
+        assert result.exit_code == 0
+        assert "✓ SHODAN_API_KEY" in result.output
+        assert "✗ HUNTER_API_KEY" in result.output
+        assert "maigret: missing HUNTER_API_KEY" in result.output
+        assert "sherlock" not in result.output  # sherlock has all required keys
+
+
+def test_keys_check_json(monkeypatch, tmp_path):
+    """keys check --json produces valid JSON with no key values in it."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "api_keys": {"required": ["SHODAN_API_KEY"]},
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    with patch("otinstaller.keys.load_env_file", return_value={"SHODAN_API_KEY": "secret_value"}):
+        result = runner.invoke(app, ["keys", "check", "--json"])
+        assert result.exit_code == 0
+        import json
+
+        data = json.loads(result.output)
+        assert "keys" in data
+        assert data["keys"]["SHODAN_API_KEY"] == "set"
+        assert "secret_value" not in result.output  # Value should not be in output
+        assert "tools_missing_keys" in data
+        assert "coverage_hints" in data
+
+
+def test_keys_check_coverage_hint(monkeypatch, tmp_path):
+    """Coverage hint math is correct for a simple constructed case."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "tool1",
+                        "display_name": "Tool 1",
+                        "description": "Tool 1",
+                        "install": {"method": "pip", "package": "tool1"},
+                        "entrypoint": {"command": "tool1"},
+                        "api_keys": {"required": ["KEY_A"]},
+                    },
+                    {
+                        "name": "tool2",
+                        "display_name": "Tool 2",
+                        "description": "Tool 2",
+                        "install": {"method": "pip", "package": "tool2"},
+                        "entrypoint": {"command": "tool2"},
+                        "api_keys": {"required": ["KEY_A", "KEY_B"]},
+                    },
+                    {
+                        "name": "tool3",
+                        "display_name": "Tool 3",
+                        "description": "Tool 3",
+                        "install": {"method": "pip", "package": "tool3"},
+                        "entrypoint": {"command": "tool3"},
+                        "api_keys": {"required": ["KEY_B"]},
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    # Only KEY_A is set
+    with patch("otinstaller.keys.load_env_file", return_value={"KEY_A": "value"}):
+        result = runner.invoke(app, ["keys", "check"])
+        assert result.exit_code == 0
+        # Adding KEY_B would unlock tool2 (needs KEY_A and KEY_B, has KEY_A)
+        # and tool3 (needs KEY_B, has none) -> 2 tools
+        assert "Adding KEY_B would unlock 2 more tool(s)" in result.output

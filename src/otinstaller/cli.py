@@ -724,10 +724,89 @@ app.add_typer(keys_app, name="keys")
 
 
 @keys_app.command("check")
-def keys_check():
+def keys_check(
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
     """Check API keys configuration."""
-    typer.echo("not implemented yet")
-    raise typer.Exit(code=2)
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.keys import load_env_file, missing_required_keys
+    from otinstaller.registry import default_registry_path, load_registry
+
+    tools = load_registry(default_registry_path())
+
+    # Collect all key names mentioned by any tool
+    all_key_names: set[str] = set()
+    for tool in tools:
+        all_key_names.update(tool.api_keys.required)
+        all_key_names.update(tool.api_keys.optional)
+
+    if not all_key_names:
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"keys": {}, "tools_missing_keys": {}, "coverage_hints": {}}))
+        else:
+            typer.echo("no tools in the registry need API keys")
+        return
+
+    # Check each key
+    key_status: dict[str, bool] = {}
+    for key in sorted(all_key_names):
+        key_status[key] = key in load_env_file()
+
+    # Check tools
+    tools_missing_keys: dict[str, list[str]] = {}
+    for tool in tools:
+        missing = missing_required_keys(tool, load_env_file())
+        if missing:
+            tools_missing_keys[tool.name] = missing
+
+    # Coverage hints
+    coverage_hints: dict[str, int] = {}
+    for key in sorted(all_key_names):
+        if key not in load_env_file():
+            count = 0
+            for tool in tools:
+                if key in tool.api_keys.required or key in tool.api_keys.optional:
+                    # Check if tool would be fully satisfied with this key
+                    missing = missing_required_keys(tool, load_env_file())
+                    if key in missing and len(missing) == 1:
+                        count += 1
+            if count > 0:
+                coverage_hints[key] = count
+
+    if json_output:
+        import json
+
+        output = {
+            "keys": {k: "set" if v else "missing" for k, v in key_status.items()},
+            "tools_missing_keys": tools_missing_keys,
+            "coverage_hints": coverage_hints,
+        }
+        import json
+
+        typer.echo(json.dumps(output))
+        return
+
+    # Human-readable output
+    for key, present in key_status.items():
+        status = "✓" if present else "✗"
+        typer.echo(f"{status} {key}")
+
+    if tools_missing_keys:
+        typer.echo("\nthese tools need keys you don't have:")
+        for tool_name, missing in tools_missing_keys.items():
+            typer.echo(f"  {tool_name}: missing {', '.join(missing)}")
+
+    if coverage_hints:
+        typer.echo("\ncoverage hints:")
+        for key, count in sorted(coverage_hints.items(), key=lambda x: -x[1]):
+            typer.echo(f"  Adding {key} would unlock {count} more tool(s)")
 
 
 @app.command()

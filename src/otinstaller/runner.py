@@ -11,6 +11,7 @@ from pathlib import Path
 
 from otinstaller.config import get_results_dir
 from otinstaller.installer.venv import venv_bin, venv_python
+from otinstaller.keys import keys_for_tool, load_env_file, missing_required_keys
 from otinstaller.registry import Tool
 from otinstaller.results import RunMeta, hash_file, results_paths, write_meta
 
@@ -63,6 +64,15 @@ def run_tool(
     env = os.environ.copy()
     if env_overrides:
         env.update(env_overrides)
+
+    # Inject API keys for this tool
+    all_keys = load_env_file()
+    tool_keys = keys_for_tool(tool, all_keys)
+    if tool_keys:
+        env.update(tool_keys)
+    missing = missing_required_keys(tool, all_keys)
+    if missing:
+        sys.stderr.write(f"warning: {tool.name} is missing required key(s): {', '.join(missing)}\n")
 
     # Start timing
     started_at = datetime.now(timezone.utc)
