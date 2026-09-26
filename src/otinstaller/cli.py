@@ -651,12 +651,219 @@ def run(
 def update(
     names: Annotated[list[str] | None, typer.Argument(help="Tool names to update")] = None,
     all_tools: Annotated[bool, typer.Option("--all", help="Update all installed tools")] = False,
+    check_only: Annotated[
+        bool, typer.Option("--check-only", help="Only check for updates, do not install")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output as JSON (only with --check-only)")
+    ] = False,
 ):
-    """Update installed tools."""
+    """Update installed tools to their latest versions."""
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
     if names is None:
         names = []
-    typer.echo("not implemented yet")
-    raise typer.Exit(code=2)
+
+    if names and all_tools:
+        typer.echo("error: cannot use both tool names and --all", err=True)
+        raise typer.Exit(code=1)
+
+    if not names and not all_tools:
+        typer.echo("error: specify tool names or --all", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.installer import AlreadyInstalled, InstallError, install_tool
+    from otinstaller.installer.core import (
+        get_latest_git_ref,
+        get_latest_pip_version,
+        versions_differ,
+    )
+    from otinstaller.registry import default_registry_path, find_tool, load_registry
+    from otinstaller.state import get_installed, list_installed
+
+    # Load registry
+    tools_registry = load_registry(default_registry_path())
+
+    # Determine which tools to check
+    if all_tools:
+        installed_list = list_installed()
+        if not installed_list:
+            typer.echo("nothing installed to update")
+            raise typer.Exit(code=0)
+        tools_to_check = [t.name for t in installed_list]
+    else:
+        tools_to_check = names
+
+    updated_count = 0
+    up_to_date_count = 0
+    pinned_count = 0
+    failed_count = 0
+    check_results = []
+
+    for name in tools_to_check:
+        installed = get_installed(name)
+        if not installed:
+            typer.echo(f"error: {name} is not installed")
+            failed_count += 1
+            if check_only and json_output:
+                check_results.append(
+                    {
+                        "tool": name,
+                        "current": None,
+                        "latest": None,
+                        "outdated": False,
+                        "error": "not installed",
+                    }
+                )
+            continue
+
+        tool = find_tool(tools_registry, name)
+        if not tool:
+            typer.echo(f"error: {name} not found in registry")
+            failed_count += 1
+            if check_only and json_output:
+                check_results.append(
+                    {
+                        "tool": name,
+                        "current": installed.version,
+                        "latest": None,
+                        "outdated": False,
+                        "error": "not in registry",
+                    }
+                )
+            continue
+
+        current_version = installed.version
+        latest_version: str | None = None
+        error: str | None = None
+
+        if tool.install.method == "pip":
+            package = tool.install.package
+            if not package:
+                error = "no package name in registry"
+            else:
+                latest_version = get_latest_pip_version(package)
+                if latest_version is None:
+                    error = "could not check for updates"
+
+        elif tool.install.method == "git":
+            # Check if tool has a pinned ref
+            if tool.install.ref:
+                # Pinned tool - no automatic update check
+                pinned_count += 1
+                msg = f"{name}: pinned at {tool.install.ref}, skip"
+                if check_only:
+                    if json_output:
+                        check_results.append(
+                            {
+                                "tool": name,
+                                "current": current_version,
+                                "latest": current_version,
+                                "outdated": False,
+                                "pinned": True,
+                            }
+                        )
+                    else:
+                        typer.echo(msg)
+                else:
+                    typer.echo(msg)
+                continue
+            else:
+                latest_version = get_latest_git_ref(tool.install.url or "")
+                if latest_version is None:
+                    error = "could not check for updates"
+
+        if error:
+            if not json_output:
+                typer.echo(f"error: {name}: {error}")
+            failed_count += 1
+            if check_only and json_output:
+                check_results.append(
+                    {
+                        "tool": name,
+                        "current": current_version,
+                        "latest": None,
+                        "outdated": False,
+                        "error": error,
+                    }
+                )
+            continue
+
+        is_outdated = versions_differ(current_version, latest_version)
+
+        if check_only:
+            if json_output:
+                check_results.append(
+                    {
+                        "tool": name,
+                        "current": current_version,
+                        "latest": latest_version,
+                        "outdated": is_outdated,
+                    }
+                )
+            else:
+                if is_outdated:
+                    msg = f"{name}: {current_version} -> {latest_version} available"
+                    typer.echo(msg)
+                    up_to_date_count += 1  # Count as "available" for summary
+                else:
+                    typer.echo(f"{name} is already up to date")
+                    up_to_date_count += 1
+        else:
+            if is_outdated:
+                # Confirm update
+                if not yes:
+                    if not sys.stdin.isatty():
+                        msg = f"error: confirmation needed for {name}, run with --yes"
+                        typer.echo(msg, err=True)
+                        failed_count += 1
+                        continue
+                    prompt = f"Update {name} from {current_version} to {latest_version}? [y/N]"
+                    answer = typer.prompt(prompt, default="n")
+                    if answer.lower() != "y":
+                        typer.echo(f"skipped {name}")
+                        up_to_date_count += 1
+                        continue
+
+                typer.echo(f"updating {name}...")
+                try:
+                    # Reinstall using force=True which cleans up and reinstalls
+                    result = install_tool(tool, force=True)
+                    typer.echo(f"updated {result.name} {result.version}")
+                    updated_count += 1
+                except (InstallError, AlreadyInstalled, Exception) as e:
+                    typer.echo(f"error: {name}: {e}")
+                    failed_count += 1
+            else:
+                typer.echo(f"{name} is already up to date")
+                up_to_date_count += 1
+
+    if check_only and json_output:
+        import json
+
+        typer.echo(json.dumps(check_results, indent=2))
+
+    if not check_only:
+        parts = []
+        if updated_count:
+            parts.append(f"{updated_count} updated")
+        if up_to_date_count:
+            parts.append(f"{up_to_date_count} already up to date")
+        if pinned_count:
+            parts.append(f"{pinned_count} pinned")
+        if failed_count:
+            parts.append(f"{failed_count} failed")
+        if parts:
+            typer.echo(", ".join(parts))
+        # For actual updates, exit 1 if any failed
+        if failed_count > 0:
+            raise typer.Exit(code=1)
+    else:
+        # For check-only, always exit 0 (informational only)
+        pass
 
 
 @app.command()
@@ -812,8 +1019,11 @@ def keys_check(
 @app.command()
 def resume(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Report what would be done without making changes")
+    ] = False,
 ):
-    """Detect and report interrupted jobs from crashes."""
+    """Detect and resume interrupted jobs from crashes."""
     import sys
 
     if sys.platform != "linux":
@@ -863,39 +1073,113 @@ def resume(
         typer.echo("nothing to resume")
         return
 
+    running_jobs = [j for j in all_jobs if _is_pid_running(j.pid)]
     orphaned = [j for j in all_jobs if not _is_pid_running(j.pid)]
 
-    if not orphaned:
+    if not orphaned and not running_jobs:
         typer.echo("nothing to resume")
         return
 
-    for job in orphaned:
-        target = job.target if job.target else "none"
-        job_type = job.job_type
-        tool = job.tool
-        started = job.started_at
-        msg = f"found interrupted {job_type}: {tool} (started {started}, target: {target})"
-        typer.echo(msg)
+    installs_resumed = 0
+    runs_reported = 0
+    skipped_running = 0
+    install_failed = False
 
-    if json_output:
-        import json
+    if dry_run:
+        # Dry run: just report what would happen
+        for job in orphaned:
+            target = job.target if job.target else "none"
+            job_type = job.job_type
+            tool = job.tool
+            started = job.started_at
+            if job_type == "install":
+                typer.echo(f"would resume install: {tool} (started {started})")
+                installs_resumed += 1
+            else:
+                cmd = f"otinstaller run {tool} -- {target}"
+                base = f"would report interrupted run: {tool} (target: {target})"
+                msg = f"{base} - rerun manually with: {cmd}"
+                typer.echo(msg)
+                runs_reported += 1
 
-        output = {
-            "orphaned": [
-                {
-                    "job_id": job.job_id,
-                    "job_type": job.job_type,
-                    "tool": job.tool,
-                    "target": job.target,
-                    "started_at": job.started_at,
-                    "pid": job.pid,
-                }
-                for job in orphaned
-            ],
-        }
-        typer.echo(json.dumps(output, indent=2))
+        for job in running_jobs:
+            target = job.target if job.target else "none"
+            tool = job.tool
+            typer.echo(f"possibly still running: {tool} (pid {job.pid}) - skipping")
+            skipped_running += 1
+    else:
+        # Actually process orphaned jobs
+        from otinstaller.config import get_tools_dir
+        from otinstaller.installer import AlreadyInstalled, InstallError, install_tool
+        from otinstaller.installer.core import safe_rmtree
+        from otinstaller.registry import default_registry_path, find_tool, load_registry
+        from otinstaller.state import job_end
 
-    raise typer.Exit(code=1)
+        # Load registry once
+        tools_registry = load_registry(default_registry_path())
+
+        for job in orphaned:
+            target = job.target if job.target else "none"
+            job_type = job.job_type
+            tool_name = job.tool
+
+            if job_type == "install":
+                typer.echo(f"resuming install: {tool_name}...")
+
+                # Clean up the half-finished install directory
+                tool_root = get_tools_dir() / tool_name
+                if tool_root.exists():
+                    safe_rmtree(tool_root)
+
+                # Remove the job marker
+                job_end(job.job_id)
+
+                # Find the tool in registry
+                tool = find_tool(tools_registry, tool_name)
+                if not tool:
+                    typer.echo(f"error: {tool_name}: tool not found in registry")
+                    install_failed = True
+                    continue
+
+                # Retry the install
+                try:
+                    result = install_tool(tool, force=True)
+                    typer.echo(f"installed {result.name} {result.version}")
+                    installs_resumed += 1
+                except AlreadyInstalled:
+                    typer.echo(f"{tool_name} is already installed (use --force to reinstall)")
+                    install_failed = True
+                except InstallError as e:
+                    typer.echo(f"error: {tool_name}: {e}")
+                    install_failed = True
+                except Exception as e:
+                    typer.echo(f"error: {tool_name}: {e}")
+                    install_failed = True
+
+            else:  # run job
+                cmd = f"otinstaller run {tool_name} -- {target}"
+                base = f"found interrupted run: {tool_name} (target: {target})"
+                msg = f"{base} - rerun manually with: {cmd}"
+                typer.echo(msg)
+                job_end(job.job_id)
+                runs_reported += 1
+
+        for job in running_jobs:
+            target = job.target if job.target else "none"
+            tool = job.tool
+            typer.echo(f"possibly still running: {tool} (pid {job.pid}) - skipping")
+            skipped_running += 1
+
+    # Summary line
+    parts = [
+        f"{installs_resumed} installs resumed",
+        f"{runs_reported} runs reported",
+        f"{skipped_running} skipped (still running)",
+    ]
+    typer.echo(", ".join(parts))
+
+    if install_failed:
+        raise typer.Exit(code=1)
 
 
 @app.command()

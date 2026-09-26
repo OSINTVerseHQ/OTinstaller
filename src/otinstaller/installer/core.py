@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from otinstaller.config import ensure_dir, get_logs_dir, get_tools_dir, tool_dir
@@ -84,6 +88,50 @@ def _get_version_git(commit: str) -> str:
     if commit:
         return commit[:12]
     return "unknown"
+
+
+def get_latest_pip_version(package: str) -> str | None:
+    """Query PyPI for the latest version of a package.
+
+    Returns None on any network error or if package not found.
+    """
+    url = f"https://pypi.org/pypi/{package}/json"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "otinstaller"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return data["info"]["version"]
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, KeyError):
+        return None
+
+
+def get_latest_git_ref(url: str) -> str | None:
+    """Get the latest commit hash for a git repository's default branch.
+
+    Uses git ls-remote to avoid a full clone. Returns None on any error.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", url, "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Output format: <hash>\tHEAD
+            return result.stdout.strip().split("\t")[0]
+    except (subprocess.SubprocessError, OSError, IndexError):
+        pass
+    return None
+
+
+def versions_differ(current: str, latest: str) -> bool:
+    """Check if two versions differ.
+
+    For pip: simple string inequality (versions are normalized by pip).
+    For git: compares full commit hashes.
+    """
+    return current != latest
 
 
 def install_tool(
