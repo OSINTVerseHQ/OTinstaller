@@ -1149,12 +1149,396 @@ def test_run_multiple_tool_names(monkeypatch, tmp_path):
             updated_at=now,
         )
 
+    meta1 = type(
+        "Meta",
+        (),
+        {
+            "tool": "sherlock",
+            "exit_code": 0,
+            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+    meta2 = type(
+        "Meta",
+        (),
+        {
+            "tool": "maigret",
+            "exit_code": 0,
+            "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+            "sha256": "def456",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+                "sha256": "def456",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool") as mock_run_tool:
+            with patch(
+                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
+            ) as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta") as _:
+                    # Use single -- (Click strips it, registry-based parsing handles the rest)
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--", "someuser", "--timeout", "5"]
+                    )
+                    assert result.exit_code == 0
+                    mock_run_tool.assert_not_called()
+                    mock_run_parallel.assert_called_once()
+                    # Verify tool_names and extra_args were parsed correctly
+                    call_args = mock_run_parallel.call_args
+                    tools_arg = call_args[0][0]
+                    assert tools_arg[0].name == "sherlock"
+                    assert tools_arg[1].name == "maigret"
+                    extra_args = call_args[0][2]
+                    assert extra_args == ["someuser", "--timeout", "5"]
+
+
+def test_run_parallel_single_tool_uses_single_path(monkeypatch, tmp_path):
+    """Running 1 tool uses the single-tool path, not parallel path."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    }
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        if name == "sherlock":
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            return InstalledTool(
+                name="sherlock",
+                version="1.0",
+                method="pip",
+                source="sherlock-project",
+                ref=None,
+                commit=None,
+                entry_command="sherlock",
+                entry_script=None,
+                installed_at=now,
+                updated_at=now,
+            )
+        return None
+
     mock_meta = type(
         "Meta",
         (),
         {
             "exit_code": 0,
-            "output_path": "{}/unspecified/20240101-000000_{}_unspecified_abc123.txt",
+            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
+            with patch("otinstaller.cli.run_tools_parallel") as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(app, ["run", "sherlock", "--", "someuser"])
+                    assert result.exit_code == 0
+                    mock_run_tool.assert_called_once()
+                    mock_run_parallel.assert_not_called()
+
+
+def test_run_parallel_multiple_tools_uses_parallel_path(monkeypatch, tmp_path):
+    """Running 2+ tools uses run_tools_parallel, not run_tool directly."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    # Create mock metas with proper tool attribute
+    meta1 = type(
+        "Meta",
+        (),
+        {
+            "tool": "sherlock",
+            "exit_code": 0,
+            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+    meta2 = type(
+        "Meta",
+        (),
+        {
+            "tool": "maigret",
+            "exit_code": 0,
+            "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+            "sha256": "def456",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+                "sha256": "def456",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool", return_value=meta1) as mock_run_tool:
+            with patch(
+                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
+            ) as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(app, ["run", "sherlock", "maigret", "--", "someuser"])
+                    assert result.exit_code == 0
+                    mock_run_tool.assert_not_called()
+                    mock_run_parallel.assert_called_once()
+                    # Verify max_parallel was passed
+                    call_kwargs = mock_run_parallel.call_args[1]
+                    assert call_kwargs["max_parallel"] == 4  # default
+
+
+def test_run_parallel_custom_parallel_value(monkeypatch, tmp_path):
+    """--parallel value is passed through to max_parallel."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    meta1 = type(
+        "Meta",
+        (),
+        {
+            "tool": "sherlock",
+            "exit_code": 0,
+            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+                "sha256": "abc123",
+                "tool_version": "",
+            },
+        },
+    )()
+    meta2 = type(
+        "Meta",
+        (),
+        {
+            "tool": "maigret",
+            "exit_code": 0,
+            "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+            "sha256": "def456",
+            "tool_version": "",
+            "to_dict": lambda self: {
+                "exit_code": 0,
+                "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+                "sha256": "def456",
+                "tool_version": "",
+            },
+        },
+    )()
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool", return_value=meta1) as mock_run_tool:
+            with patch(
+                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
+            ) as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--parallel", "2", "--", "someuser"]
+                    )
+                    assert result.exit_code == 0
+                    mock_run_tool.assert_not_called()
+                    mock_run_parallel.assert_called_once()
+                    call_kwargs = mock_run_parallel.call_args[1]
+                    assert call_kwargs["max_parallel"] == 2
+
+
+def test_run_parallel_invalid_parallel_exits(monkeypatch, tmp_path):
+    """--parallel 0 or negative exits 1 with error message before calling anything."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    mock_meta = type(
+        "Meta",
+        (),
+        {
+            "exit_code": 0,
+            "output_path": "test/unspecified/20240101-000000_test_unspecified_abc123.txt",
             "sha256": "abc123",
             "tool_version": "",
             "to_dict": lambda self: {
@@ -1168,16 +1552,326 @@ def test_run_multiple_tool_names(monkeypatch, tmp_path):
 
     with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
-            with patch("otinstaller.cli.write_meta") as _:
-                # Use single -- (Click strips it, registry-based parsing handles the rest)
-                result = runner.invoke(
-                    app, ["run", "sherlock", "maigret", "--", "someuser", "--timeout", "5"]
-                )
-                assert result.exit_code == 0
-                assert mock_run_tool.call_count == 2
-            # Verify tool_names and extra_args were parsed correctly
-            calls = mock_run_tool.call_args_list
-            assert calls[0][0][0].name == "sherlock"
-            assert calls[1][0][0].name == "maigret"
-            assert calls[0][0][2] == ["someuser", "--timeout", "5"]
-            assert calls[1][0][2] == ["someuser", "--timeout", "5"]
+            with patch("otinstaller.cli.run_tools_parallel") as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta") as _:
+                    # Test --parallel 0
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--parallel", "0", "--", "someuser"]
+                    )
+                    assert result.exit_code == 1
+                    assert "error: --parallel must be at least 1" in result.output
+                    mock_run_tool.assert_not_called()
+                    mock_run_parallel.assert_not_called()
+
+                    # Test --parallel -1
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--parallel", "-1", "--", "someuser"]
+                    )
+                    assert result.exit_code == 1
+                    assert "error: --parallel must be at least 1" in result.output
+
+
+def test_run_parallel_exit_code_all_succeed(monkeypatch, tmp_path):
+    """Exit code 0 when all mocked results succeed."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.results import RunMeta
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    meta1 = RunMeta(
+        command=["sherlock", "someuser"],
+        tool="sherlock",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=0,
+        status="complete",
+        output_path="sherlock/someuser/20240101-000000_sherlock_someuser_abc123.txt",
+        sha256="abc123",
+        bytes=100,
+    )
+    meta2 = RunMeta(
+        command=["maigret", "someuser"],
+        tool="maigret",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=0,
+        status="complete",
+        output_path="maigret/someuser/20240101-000000_maigret_someuser_abc123.txt",
+        sha256="def456",
+        bytes=100,
+    )
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool") as _:
+            with patch("otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]) as _:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(app, ["run", "sherlock", "maigret", "--", "someuser"])
+                    assert result.exit_code == 0
+                    assert "2 ok, 0 failed" in result.output
+
+
+def test_run_parallel_exit_code_any_failed(monkeypatch, tmp_path):
+    """Exit code 1 when any mocked result failed."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.results import RunMeta
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    meta1 = RunMeta(
+        command=["sherlock", "someuser"],
+        tool="sherlock",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=0,
+        status="complete",
+        output_path="sherlock/someuser/20240101-000000_sherlock_someuser_abc123.txt",
+        sha256="abc123",
+        bytes=100,
+    )
+    meta2 = RunMeta(
+        command=["maigret", "someuser"],
+        tool="maigret",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=1,
+        status="failed",
+        output_path="maigret/someuser/20240101-000000_maigret_someuser_abc123.txt",
+        sha256="def456",
+        bytes=100,
+    )
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool") as _:
+            with patch("otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]) as _:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(app, ["run", "sherlock", "maigret", "--", "someuser"])
+                    assert result.exit_code == 1
+                    assert "1 ok, 1 failed" in result.output
+
+
+def test_run_parallel_summary_line_correct(monkeypatch, tmp_path):
+    """Summary line 'N ok, N failed' is correct for mixed results."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "thirdtool",
+                        "display_name": "Third Tool",
+                        "description": "Another tool",
+                        "install": {"method": "pip", "package": "thirdtool"},
+                        "entrypoint": {"command": "thirdtool"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.results import RunMeta
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    meta1 = RunMeta(
+        command=["sherlock", "someuser"],
+        tool="sherlock",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=0,
+        status="complete",
+        output_path="sherlock/someuser/20240101-000000_sherlock_someuser_abc123.txt",
+        sha256="abc123",
+        bytes=100,
+    )
+    meta2 = RunMeta(
+        command=["maigret", "someuser"],
+        tool="maigret",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=1,
+        status="failed",
+        output_path="maigret/someuser/20240101-000000_maigret_someuser_abc123.txt",
+        sha256="def456",
+        bytes=100,
+    )
+    meta3 = RunMeta(
+        command=["thirdtool", "someuser"],
+        tool="thirdtool",
+        tool_version="1.0",
+        target="someuser",
+        case=None,
+        started_at=now,
+        ended_at=now,
+        duration_seconds=1.0,
+        exit_code=0,
+        status="complete",
+        output_path="thirdtool/someuser/20240101-000000_thirdtool_someuser_abc123.txt",
+        sha256="ghi789",
+        bytes=100,
+    )
+
+    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool") as _:
+            with patch(
+                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2, meta3]
+            ) as _:
+                with patch("otinstaller.cli.write_meta") as _:
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "thirdtool", "--", "someuser"]
+                    )
+                    assert result.exit_code == 1
+                    assert "2 ok, 1 failed" in result.output

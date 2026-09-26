@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sys
@@ -44,7 +45,7 @@ from otinstaller.registry import (
     suggest_names,
 )
 from otinstaller.results import write_meta
-from otinstaller.runner import run_tool
+from otinstaller.runner import run_tool, run_tools_parallel
 from otinstaller.state import list_installed
 
 app = typer.Typer(
@@ -465,6 +466,9 @@ def run(
         bool, typer.Option("--verbose", help="Stream tool output to terminal")
     ] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    parallel: Annotated[
+        int, typer.Option("--parallel", "-p", help="Max concurrent tools (default: 4)")
+    ] = 4,
 ):
     """Run one or more tools with arguments passed through after --.
 
@@ -537,18 +541,25 @@ def run(
             raise typer.Exit(code=1)
         installed_tools[name] = installed
 
-    # Run each tool
-    console = _make_console(no_color)
-    use_spinner = not no_color and sys.stdout.isatty()
+    # Validate parallel option
+    if parallel < 1:
+        typer.echo("error: --parallel must be at least 1", err=True)
+        raise typer.Exit(code=1)
 
-    for name, t in tools:
+    # Determine target (same for all tools)
+    run_target = target if target is not None else (extra_args[0] if extra_args else "unspecified")
+
+    # Prepare roots dict
+    roots = {name: get_tools_dir() / name for name, _t in tools}
+
+    # Single tool: use existing run_tool path
+    if len(tools) == 1:
+        name, t = tools[0]
         installed = installed_tools[name]
-        root = get_tools_dir() / name
+        root = roots[name]
 
-        # Determine target
-        run_target = (
-            target if target is not None else (extra_args[0] if extra_args else "unspecified")
-        )
+        console = _make_console(no_color)
+        use_spinner = not no_color and sys.stdout.isatty()
 
         try:
             if use_spinner:
@@ -574,7 +585,6 @@ def run(
                     stream=verbose,
                 )
 
-            # Fill in tool_version from installed state and rewrite meta
             meta.tool_version = installed.version
             results_dir = get_results_dir()
             meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
@@ -584,7 +594,6 @@ def run(
             typer.echo(f"saved to {meta.output_path}")
             typer.echo(f"sha256  {meta.sha256}")
 
-            # Exit with tool's exit code if non-zero
             if meta.exit_code != 0:
                 raise typer.Exit(code=meta.exit_code)
 
@@ -596,6 +605,42 @@ def run(
                 msg += "unknown"
             typer.echo(msg, err=True)
             raise typer.Exit(code=130) from None
+
+    # Multiple tools: use run_tools_parallel
+    else:
+        tool_list = [t for _name, t in tools]
+        results = asyncio.run(
+            run_tools_parallel(
+                tool_list,
+                roots,
+                extra_args,
+                target=run_target,
+                case=case,
+                max_parallel=parallel,
+                stream=verbose,
+            )
+        )
+
+        # Print results as they complete (results are in input order)
+        ok_count = 0
+        failed_count = 0
+        for meta in results:
+            meta.tool_version = installed_tools[meta.tool].version
+            results_dir = get_results_dir()
+            meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
+            write_meta(meta, meta_path)
+
+            if meta.exit_code == 0:
+                typer.echo(f"{meta.tool} done (exit 0)")
+                ok_count += 1
+            else:
+                typer.echo(f"{meta.tool} failed (exit {meta.exit_code})")
+                failed_count += 1
+
+        typer.echo(f"{ok_count} ok, {failed_count} failed")
+
+        if failed_count > 0:
+            raise typer.Exit(code=1)
 
 
 @app.command()
