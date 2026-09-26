@@ -47,6 +47,7 @@ def run_tool(
     case: str | None,
     env_overrides: dict[str, str] | None,
     stream: bool,
+    cancel_event: asyncio.Event | None = None,
 ) -> RunMeta:
     """Run a tool and return RunMeta. Does not raise on tool exit code."""
     # Determine target
@@ -79,17 +80,37 @@ def run_tool(
         start_new_session=True,
     )
 
-    # Stream output to file (and terminal if stream=True)
-    with output_path.open("wb") as f:
-        if proc.stdout:
-            for line in iter(proc.stdout.readline, b""):
-                f.write(line)
-                if stream:
-                    sys.stdout.buffer.write(line)
-                    sys.stdout.buffer.flush()
+    try:
+        # Stream output to file (and terminal if stream=True)
+        with output_path.open("wb") as f:
+            if proc.stdout:
+                for line in iter(proc.stdout.readline, b""):
+                    f.write(line)
+                    if stream:
+                        sys.stdout.buffer.write(line)
+                        sys.stdout.buffer.flush()
+                    # Check for cancellation
+                    if cancel_event is not None and cancel_event.is_set():
+                        break
 
-    # Wait for process to complete
-    exit_code = proc.wait()
+        # Wait for process to complete (or kill if cancelled)
+        if cancel_event is not None and cancel_event.is_set():
+            # Kill the entire process group
+            os.killpg(os.getpgid(proc.pid), 9)  # SIGKILL
+            proc.wait()
+            exit_code = -9  # SIGKILL
+        else:
+            exit_code = proc.wait()
+    except KeyboardInterrupt:
+        # Kill the entire process group on interrupt
+        try:
+            os.killpg(os.getpgid(proc.pid), 9)
+        except ProcessLookupError:
+            pass
+        proc.wait()
+        exit_code = -9
+        raise
+
     ended_at = datetime.now(timezone.utc)
     ended_at_str = ended_at.isoformat()
     duration = (ended_at - started_at).total_seconds()
@@ -145,6 +166,7 @@ async def run_tools_parallel(
     exact behavior of run_tool. Returns results in the same order as the
     input tools list.
     """
+    cancel_event = asyncio.Event()
     semaphore = asyncio.Semaphore(max_parallel)
 
     async def run_one(tool: Tool) -> RunMeta:
@@ -159,10 +181,20 @@ async def run_tools_parallel(
                 case=case,
                 env_overrides=None,
                 stream=stream,
+                cancel_event=cancel_event,
             )
 
     # Use gather with return_exceptions=True so one failure doesn't cancel others
-    results = await asyncio.gather(*[run_one(t) for t in tools], return_exceptions=True)
+    tasks = [run_one(t) for t in tools]
+    try:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        # Signal cancellation to all running tools
+        cancel_event.set()
+        # Wait for tasks to complete (they should exit quickly after seeing cancel_event)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Re-raise to signal interruption to caller
+        raise
 
     # Convert exceptions to failed RunMeta objects
     final_results: list[RunMeta] = []

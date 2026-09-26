@@ -63,7 +63,9 @@ async def test_run_tools_parallel_concurrent(tmp_path):
     # Track start/end times for each tool
     tool_times = {}
 
-    def mock_run_tool(tool, root, extra_args, *, target, case, env_overrides, stream):
+    def mock_run_tool(
+        tool, root, extra_args, *, target, case, env_overrides, stream, cancel_event=None
+    ):
         start = time.monotonic()
         tool_times[tool.name] = {"start": start}
         time.sleep(0.3)  # Simulate work (sync sleep since run_tool is sync)
@@ -126,7 +128,9 @@ async def test_run_tools_parallel_limited_concurrency(tmp_path):
 
     tool_times = {}
 
-    def mock_run_tool(tool, root, extra_args, *, target, case, env_overrides, stream):
+    def mock_run_tool(
+        tool, root, extra_args, *, target, case, env_overrides, stream, cancel_event=None
+    ):
         start = time.monotonic()
         tool_times[tool.name] = {"start": start}
         time.sleep(0.3)
@@ -189,7 +193,9 @@ async def test_run_tools_parallel_mixed_success_failure(tmp_path):
 
     call_count = {"count": 0}
 
-    def mock_run_tool(tool, root, extra_args, *, target, case, env_overrides, stream):
+    def mock_run_tool(
+        tool, root, extra_args, *, target, case, env_overrides, stream, cancel_event=None
+    ):
         call_count["count"] += 1
         time.sleep(0.1)
 
@@ -246,3 +252,128 @@ async def test_run_tools_parallel_mixed_success_failure(tmp_path):
     assert results[1].status == "failed"
     assert results[2].status == "complete"
     assert call_count["count"] == 3  # All three were called
+
+
+@pytest.mark.network
+@pytest.mark.asyncio
+async def test_run_tools_parallel_sigint(monkeypatch, tmp_path):
+    """Real SIGINT test for parallel runs - requires Linux and installed tools."""
+    import os
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    # Skip if not on Linux
+    if sys.platform != "linux":
+        pytest.skip("SIGINT test requires Linux")
+
+    # Use a temporary OTINSTALLER_HOME
+    home = tmp_path / "home"
+    monkeypatch.setenv("OTINSTALLER_HOME", str(home))
+
+    # Check if sherlock and maigret are installed
+    sherlock_path = home / "tools" / "sherlock"
+    maigret_path = home / "tools" / "maigret"
+    if not sherlock_path.exists() or not maigret_path.exists():
+        pytest.skip("sherlock and maigret must be installed")
+
+    # Run otinstaller with both tools in parallel
+    cmd = [
+        sys.executable,
+        "-m",
+        "otinstaller",
+        "run",
+        "sherlock",
+        "maigret",
+        "--parallel",
+        "2",
+        "--",
+        "testuser",
+    ]
+
+    # Start the process in its own process group
+    proc = subprocess.Popen(
+        cmd,
+        preexec_fn=os.setsid,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    try:
+        # Wait a moment for tools to start
+        time.sleep(3)
+
+        # Send SIGINT to the process group
+        os.killpg(os.getpgid(proc.pid), signal.SIGINT)
+
+        # Wait for process to exit with timeout
+        try:
+            stdout, _ = proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            stdout, _ = proc.communicate()
+            pytest.fail("otinstaller did not exit within 10 seconds after SIGINT")
+
+        # Verify process exited
+        assert proc.returncode is not None, "otinstaller process should have exited"
+
+        # Check for orphaned processes
+        time.sleep(1)  # Allow time for process cleanup
+        remaining = subprocess.run(
+            ["ps", "aux"],
+            capture_output=True,
+            text=True,
+        )
+        sherlock_procs = [
+            line
+            for line in remaining.stdout.splitlines()
+            if "sherlock" in line and "grep" not in line
+        ]
+        maigret_procs = [
+            line
+            for line in remaining.stdout.splitlines()
+            if "maigret" in line and "grep" not in line
+        ]
+
+        # Should have no orphaned sherlock or maigret processes
+        assert not sherlock_procs, f"Orphaned sherlock processes: {sherlock_procs}"
+        assert not maigret_procs, f"Orphaned maigret processes: {maigret_procs}"
+
+        # Check for meta.json files with status "interrupted"
+        import json
+
+        results_dir = home / "results"
+        sherlock_meta_files = list(results_dir.glob("sherlock/**/*.meta.json"))
+        maigret_meta_files = list(results_dir.glob("maigret/**/*.meta.json"))
+
+        assert sherlock_meta_files, "No sherlock meta.json found"
+        assert maigret_meta_files, "No maigret meta.json found"
+
+        # Check at least one meta.json for each tool has status "interrupted"
+        sherlock_interrupted = False
+        for meta_file in sherlock_meta_files:
+            with open(meta_file) as f:
+                meta = json.load(f)
+                if meta.get("status") == "interrupted":
+                    sherlock_interrupted = True
+                    break
+
+        maigret_interrupted = False
+        for meta_file in maigret_meta_files:
+            with open(meta_file) as f:
+                meta = json.load(f)
+                if meta.get("status") == "interrupted":
+                    maigret_interrupted = True
+                    break
+
+        assert sherlock_interrupted, "No sherlock meta.json with status 'interrupted'"
+        assert maigret_interrupted, "No maigret meta.json with status 'interrupted'"
+
+    finally:
+        # Cleanup: ensure process is dead
+        if proc.poll() is None:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                pass

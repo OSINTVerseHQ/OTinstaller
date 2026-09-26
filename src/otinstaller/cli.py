@@ -609,17 +609,21 @@ def run(
     # Multiple tools: use run_tools_parallel
     else:
         tool_list = [t for _name, t in tools]
-        results = asyncio.run(
-            run_tools_parallel(
-                tool_list,
-                roots,
-                extra_args,
-                target=run_target,
-                case=case,
-                max_parallel=parallel,
-                stream=verbose,
+        try:
+            results = asyncio.run(
+                run_tools_parallel(
+                    tool_list,
+                    roots,
+                    extra_args,
+                    target=run_target,
+                    case=case,
+                    max_parallel=parallel,
+                    stream=verbose,
+                )
             )
-        )
+        except KeyboardInterrupt:
+            typer.echo("interrupted", err=True)
+            raise typer.Exit(code=130) from None
 
         # Print results as they complete (results are in input order)
         ok_count = 0
