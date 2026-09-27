@@ -24,6 +24,7 @@ from otinstaller.config import (
     get_results_dir,
     get_tools_dir,
 )
+from otinstaller.detect import detect_target_type
 from otinstaller.diff import diff_runs, find_recent_runs
 from otinstaller.extract import extract_from_files
 from otinstaller.installer import (
@@ -994,6 +995,150 @@ def diff(
         typer.echo(f"+ {line}")
     for line in diff_result["removed"]:
         typer.echo(f"- {line}")
+
+
+@app.command()
+def auto(
+    target: Annotated[
+        str, typer.Argument(help="Target to scan (email, domain, IP, URL, username)")
+    ] = None,
+    type: Annotated[
+        str | None,
+        typer.Option("--type", help="Override target type: email, domain, ip, url, username"),
+    ] = None,
+    parallel: Annotated[
+        int, typer.Option("--parallel", "-p", help="Max concurrent tools (default: 4)")
+    ] = 4,
+    case: Annotated[
+        str | None, typer.Option("--case", help="Case name for results grouping")
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show which tools would run without executing")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+    no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+):
+    """Auto-detect target type and run all matching installed tools."""
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.registry import default_registry_path, load_registry
+    from otinstaller.state import get_installed
+
+    # Validate type override
+    valid_types = {"email", "domain", "ip", "url", "username"}
+    if type and type not in valid_types:
+        types_str = ", ".join(sorted(valid_types))
+        typer.echo(f"error: invalid type '{type}', must be one of: {types_str}", err=True)
+        raise typer.Exit(code=1)
+
+    # Detect or use provided type
+    if type:
+        detected_type = type
+    else:
+        detected_type = detect_target_type(target)
+        typer.echo(f"detected target type: {detected_type}")
+
+    # Validate parallel
+    if parallel < 1:
+        typer.echo("error: --parallel must be at least 1", err=True)
+        raise typer.Exit(code=1)
+
+    # Load registry and find matching tools
+    tools_registry = load_registry(default_registry_path())
+    matching_tools = [t for t in tools_registry if detected_type in t.accepts]
+
+    if not matching_tools:
+        typer.echo(f"no tools in registry accept '{detected_type}' targets")
+        raise typer.Exit(code=0)
+
+    # Check which matching tools are installed
+    installed_tools = {t.name: get_installed(t.name) for t in matching_tools}
+    installed_matching = {name: t for name, t in installed_tools.items() if t}
+    not_installed_matching = [t for t in matching_tools if t.name not in installed_matching]
+
+    if not installed_matching:
+        typer.echo(f"no installed tools accept '{detected_type}' targets")
+        if not_installed_matching:
+            msg = "the following matching tools are not installed "
+            msg += "(run 'otinstaller install <name>' to include them):"
+            typer.echo(msg)
+            for t in not_installed_matching:
+                typer.echo(f"  {t.name}")
+        raise typer.Exit(code=0)
+
+    # Dry run: show what would run
+    if dry_run:
+        typer.echo("would run the following installed tools:")
+        for t in installed_matching.values():
+            typer.echo(f"  {t.name}")
+        if not_installed_matching:
+            typer.echo("the following matching tools are not installed:")
+            for t in not_installed_matching:
+                typer.echo(f"  {t.name} (not installed)")
+        raise typer.Exit(code=0)
+
+    # Confirm before running
+    if not yes:
+        if not sys.stdin.isatty():
+            typer.echo("error: confirmation needed, run with --yes", err=True)
+            raise typer.Exit(code=1)
+        typer.echo("the following installed tools will be run:")
+        for t in installed_matching.values():
+            typer.echo(f"  {t.name}")
+        if not_installed_matching:
+            typer.echo("note: the following matching tools are not installed and will be skipped:")
+            for t in not_installed_matching:
+                typer.echo(f"  {t.name}")
+        answer = typer.prompt("Run? [y/N]", default="n")
+        if answer.lower() != "y":
+            typer.echo("cancelled")
+            raise typer.Exit(code=1)
+
+    # Run the matching tools using existing parallel execution
+    tool_list = list(installed_matching.values())
+    roots = {t.name: get_tools_dir() / t.name for t in tool_list}
+
+    try:
+        results = asyncio.run(
+            run_tools_parallel(
+                tool_list,
+                roots,
+                [target],  # pass target as extra_args so build_command includes it
+                target=target,
+                case=case,
+                max_parallel=parallel,
+                stream=False,
+            )
+        )
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        typer.echo("interrupted", err=True)
+        raise typer.Exit(code=130) from None
+
+    # Output results
+    ok_count = 0
+    failed_count = 0
+    for meta in results:
+        tool_version = installed_tools[meta.tool].version if meta.tool in installed_tools else ""
+        meta.tool_version = tool_version
+        results_dir = get_results_dir()
+        meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
+        write_meta(meta, meta_path)
+
+        if meta.exit_code == 0:
+            typer.echo(f"{meta.tool} done (exit 0)")
+            ok_count += 1
+        else:
+            typer.echo(f"{meta.tool} failed (exit {meta.exit_code})")
+            failed_count += 1
+
+    typer.echo(f"{ok_count} ok, {failed_count} failed")
+
+    if failed_count > 0:
+        raise typer.Exit(code=1)
 
 
 @app.command()
