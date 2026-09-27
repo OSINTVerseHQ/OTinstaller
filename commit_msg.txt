@@ -1,1 +1,1 @@
-fix auto command incorrectly calling parallel runner
+fix auto command passing InstalledTool instead of Tool object
