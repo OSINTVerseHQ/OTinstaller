@@ -28,6 +28,7 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  example: examples/maigret.txt
 - name: ghunt
   display_name: Ghunt
   description: Offensive Google framework.
@@ -62,6 +63,7 @@ tools:
   accepts:
   - username
   - email
+  example: examples/ghunt.txt
 - name: theharvester
   display_name: theHarvester
   description: Find emails, subdomains and names for a domain
@@ -92,6 +94,7 @@ tools:
     python: 3.12.14
   accepts:
   - domain
+  example: examples/theharvester.txt
 - name: spiderfoot
   display_name: Spiderfoot
   description: SpiderFoot automates OSINT for threat intelligence and mapping your
@@ -137,6 +140,7 @@ tools:
   - ip
   - username
   - email
+  example: examples/spiderfoot.txt
 - name: instaloader
   display_name: Instaloader
   description: Download pictures (or videos) along with their captions and other metadata
@@ -204,6 +208,7 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  example: examples/sherlock.txt
 - name: holehe
   display_name: Holehe
   description: holehe allows you to check if the mail is used on different sites like
@@ -240,6 +245,7 @@ tools:
   accepts:
   - email
   - username
+  example: examples/holehe.txt
 - name: bbot
   display_name: Bbot
   description: The recursive internet scanner for hackers.

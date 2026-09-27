@@ -1,0 +1,63 @@
+example output for spiderfoot:
+------------------------------------------------------------
+[+] SpiderFoot HPC - Scan ID: scan-20240115-123456
+[+] Target: example.com
+[+] Modules: 150+ modules enabled
+[+] Scan started: 2024-01-15 10:30:00 UTC
+
+[*] Found 156 findings across 15 modules:
+
+[*] DNS Records (sfp_dns)
+    A: example.com -> 93.184.216.34
+    MX: example.com -> mail.example.com
+    NS: example.com -> ns1.example.com, ns2.example.com
+    TXT: example.com -> "v=spf1 include:_spf.example.com ~all"
+    CAA: example.com -> 0 issue "letsencrypt.org"
+
+[*] Whois (sfp_whois)
+    Registrar: Example Registrar, Inc.
+    Creation: 1995-08-14
+    Expiry: 2025-08-13
+    Registrant: Example Organization
+    Email: admin@example.com
+
+[*] SSL Certificate (sfp_sslcert)
+    Issuer: Let's Encrypt
+    Subject: example.com
+    Valid: 2024-01-01 to 2024-04-01
+    SANs: example.com, www.example.com
+
+[*] Subdomain Enumeration (sfp_dnsbrute, sfp_ctfr, sfp_sublist3r)
+    www.example.com -> 93.184.216.34
+    mail.example.com -> 93.184.216.34
+    ftp.example.com -> 93.184.216.34
+    dev.example.com -> 192.0.2.10
+    staging.example.com -> 192.0.2.20
+    api.example.com -> 192.0.2.30
+    admin.example.com -> 192.0.2.40
+
+[*] Email Addresses (sfp_email)
+    admin@example.com
+    support@example.com
+    security@example.com
+    abuse@example.com
+    webmaster@example.com
+
+[*] Social Media Profiles (sfp_social)
+    Twitter: https://twitter.com/examplecom
+    LinkedIn: https://linkedin.com/company/examplecom
+    GitHub: https://github.com/examplecom
+
+[*] Technologies (sfp_builtwith, sfp_wappalyzer)
+    Web Server: nginx/1.20.0
+    CMS: WordPress 6.2
+    Language: PHP 8.1
+    Framework: Laravel 10
+    CDN: Cloudflare
+
+[*] Vulnerabilities (sfp_vulners, sfp_nvd)
+    CVE-2023-1234: WordPress < 6.2.1 - Medium (CVSS 6.1)
+    CVE-2022-9876: nginx < 1.22.0 - Low (CVSS 3.7)
+
+------------------------------------------------------------
+(Example truncated - real output contains 156+ findings across 15+ modules)

@@ -1,14 +1,17 @@
 """CLI tests."""
 
+import importlib.resources
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+import otinstaller
 from otinstaller.cli import app
 
 runner = CliRunner()
@@ -55,9 +58,7 @@ def test_keys_help():
 
 @pytest.mark.parametrize(
     "cmd_args",
-    [
-        ["example", "tool1"],
-    ],
+    [],
 )
 def test_stub_commands_exit_2(cmd_args):
     result = runner.invoke(app, cmd_args)
@@ -2834,5 +2835,237 @@ def test_auto_calls_run_tools_parallel_correctly(monkeypatch, tmp_path):
                 assert len(tools) == 2
                 tool_names = {t.name for t in tools}
                 assert tool_names == {"tool1", "tool2"}
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+# Example CLI tests
+
+
+def test_example_with_real_file(monkeypatch, tmp_path):
+    """example with a real example file loads and displays the content."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create a mock tool with example pointing to a real example file in package data
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="testtool",
+                display_name="Test Tool",
+                description="A tool with example",
+                install=Install(method="pip", package="testtool"),
+                entrypoint=Entrypoint(command="testtool"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                example="examples/testtool.txt",
+            ),
+        ]
+
+    original_load_registry = otinstaller.registry.load_registry
+    monkeypatch.setattr(otinstaller.registry, "load_registry", mock_load_registry)
+
+    # Create example file in the package data directory
+
+    from otinstaller import data
+
+    examples_dir = importlib.resources.files(data) / "examples"
+    examples_dir.mkdir(parents=True, exist_ok=True)
+    example_file = examples_dir / "testtool.txt"
+    example_file.write_text("example output for testtool\n")
+
+    try:
+        runner = CliRunner()
+        result = runner.invoke(app, ["example", "testtool"])
+        assert result.exit_code == 0
+        assert "example output for testtool" in result.output
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_example_no_example_field(monkeypatch, tmp_path):
+    """example for a tool with no example field shows message and exits 0."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create a tool without example field
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="noexample",
+                display_name="No Example Tool",
+                description="A tool without example",
+                install=Install(method="pip", package="noexample"),
+                entrypoint=Entrypoint(command="noexample"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["example", "noexample"])
+        assert result.exit_code == 0
+        assert "no example available for noexample yet" in result.output
+        assert "install it and run it yourself" in result.output
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_example_unknown_tool(monkeypatch, tmp_path):
+    """example for an unknown tool name shows suggestions."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    result = runner.invoke(app, ["example", "nonexistent"])
+    assert result.exit_code == 1
+    assert "error: unknown tool 'nonexistent'" in result.output
+
+
+def test_example_json_output(monkeypatch, tmp_path):
+    """example --json outputs correct shape."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create a mock tool with example
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="testtool",
+                display_name="Test Tool",
+                description="A tool with example",
+                install=Install(method="pip", package="testtool"),
+                entrypoint=Entrypoint(command="testtool"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                example="examples/testtool.txt",
+            ),
+        ]
+
+        otinstaller.registry.load_registry = mock_load_registry
+
+        # Create example file in a temporary directory
+        with tempfile.TemporaryDirectory() as tmpdir:
+            examples_dir = Path(tmpdir) / "examples"
+            examples_dir.mkdir(parents=True, exist_ok=True)
+            example_file = examples_dir / "testtool.txt"
+            example_file.write_text("example content\n")
+
+            try:
+                runner = CliRunner()
+                result = runner.invoke(app, ["example", "testtool", "--json"])
+                assert result.exit_code == 0
+                import json
+
+                data = json.loads(result.output)
+
+                assert data["tool"] == "testtool"
+                assert data["has_example"] is True
+                assert data["content"] == "example content\n"
+                assert "error" not in data
+
+                # Test without example (unknown tool - outputs text error, not JSON)
+                result = runner.invoke(app, ["example", "nonexistent", "--json"])
+                assert result.exit_code == 1
+                assert "error: unknown tool 'nonexistent'" in result.output
+            finally:
+                otinstaller.registry.load_registry = original_load_registry
+
+
+def test_example_missing_file_errors_cleanly(monkeypatch, tmp_path):
+    """example for a tool whose example file is missing errors cleanly."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="broken",
+                display_name="Broken Tool",
+                description="Tool with missing example file",
+                install=Install(method="pip", package="broken"),
+                entrypoint=Entrypoint(command="broken"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                example="examples/nonexistent.txt",
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["example", "broken"])
+        assert result.exit_code == 1
+        assert "error: example file for broken could not be loaded" in result.output
     finally:
         otinstaller.registry.load_registry = original_load_registry

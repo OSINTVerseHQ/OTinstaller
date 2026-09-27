@@ -1,0 +1,60 @@
+example output for sherlock:
+------------------------------------------------------------
+[+] Checking username: exampleuser on 500+ social networks
+[+] Found 42 accounts
+
+Twitter: https://twitter.com/exampleuser
+GitHub: https://github.com/exampleuser
+LinkedIn: https://linkedin.com/in/exampleuser
+Instagram: https://instagram.com/exampleuser
+Reddit: https://reddit.com/user/exampleuser
+YouTube: https://youtube.com/@exampleuser
+TikTok: https://tiktok.com/@exampleuser
+Medium: https://medium.com/@exampleuser
+Dev.to: https://dev.to/exampleuser
+StackOverflow: https://stackoverflow.com/users/12345/exampleuser
+Product Hunt: https://producthunt.com/@exampleuser
+Hacker News: https://news.ycombinator.com/user?id=exampleuser
+Telegram: https://t.me/exampleuser
+Discord: https://discord.com/users/exampleuser
+Pinterest: https://pinterest.com/exampleuser
+Vimeo: https://vimeo.com/exampleuser
+Flickr: https://flickr.com/people/exampleuser
+Dribbble: https://dribbble.com/exampleuser
+Behance: https://behance.net/exampleuser
+CodePen: https://codepen.io/exampleuser
+Replit: https://replit.com/@exampleuser
+Glitch: https://glitch.com/@exampleuser
+CodeSandbox: https://codesandbox.io/u/exampleuser
+GitLab: https://gitlab.com/exampleuser
+Bitbucket: https://bitbucket.org/exampleuser
+Keybase: https://keybase.io/exampleuser
+Mastodon: https://mastodon.social/@exampleuser
+Diaspora: https://diaspora.example.com/u/exampleuser
+Friendica: https://friendica.example.com/profile/exampleuser
+GNU Social: https://gnusocial.example.com/exampleuser
+Hubzilla: https://hubzilla.example.com/channel/exampleuser
+Peertube: https://peertube.example.com/@exampleuser
+Pixelfed: https://pixelfed.social/exampleuser
+Lemmy: https://lemmy.ml/u/exampleuser
+Kbin: https://kbin.social/u/exampleuser
+Tildes: https://tildes.net/~exampleuser
+Raddle: https://raddle.me/u/exampleuser
+SaidIt: https://saidit.net/user/exampleuser
+Ruqqus: https://ruqqus.com/user/exampleuser
+WikiMili: https://wikimili.com/u/exampleuser
+MyAnimeList: https://myanimelist.net/profile/exampleuser
+AniList: https://anilist.co/user/exampleuser
+Kitsu: https://kitsu.io/users/exampleuser
+Steam: https://steamcommunity.com/id/exampleuser
+Xbox: https://xboxgamertag.com/search/exampleuser
+PlayStation: https://psnprofiles.com/exampleuser
+Nintendo: https://miiverse.nintendo.net/users/exampleuser
+Twitch: https://twitch.tv/exampleuser
+Mixer: https://mixer.com/exampleuser
+DLive: https://dlive.tv/exampleuser
+Trovo: https://trovo.live/exampleuser
+Caffeine: https://caffeine.tv/exampleuser
+Trovo: https://trovo.live/exampleuser
+------------------------------------------------------------
+(Example truncated - real output contains 42 sites found)
