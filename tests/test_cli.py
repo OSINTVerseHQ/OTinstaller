@@ -2311,3 +2311,528 @@ def test_diff_no_changes(monkeypatch, tmp_path):
         assert "no changes between these two runs" in result.output
     finally:
         otinstaller.diff.get_results_dir = original_get_results
+
+
+# Auto CLI tests
+
+
+def test_auto_type_override_skips_detection(monkeypatch, tmp_path):
+    """auto with --type override skips detection entirely."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Use --type to override - even though "example.com" would detect as domain,
+    # we override to username
+    result = runner.invoke(app, ["auto", "example.com", "--type", "username", "--dry-run"])
+    assert result.exit_code == 0
+    assert "detected target type" not in result.output  # Detection was skipped
+
+
+def test_auto_filters_to_installed_matching_tools(monkeypatch, tmp_path):
+    """auto correctly filters to only installed tools matching the type."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    # Create registry with tools that accept different types
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="tool1",
+                display_name="Tool 1",
+                description="Accepts username",
+                install=Install(method="pip", package="tool1"),
+                entrypoint=Entrypoint(command="tool1"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+            Tool(
+                name="tool2",
+                display_name="Tool 2",
+                description="Accepts domain",
+                install=Install(method="pip", package="tool2"),
+                entrypoint=Entrypoint(command="tool2"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("domain",),
+            ),
+            Tool(
+                name="tool3",
+                display_name="Tool 3",
+                description="Accepts both",
+                install=Install(method="pip", package="tool3"),
+                entrypoint=Entrypoint(command="tool3"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username", "domain"),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from datetime import datetime, timezone
+
+        from otinstaller.state import InstalledTool, add_installed
+
+        now = datetime.now(timezone.utc).isoformat()
+        # Only tool1 and tool3 are installed
+        for name in ["tool1", "tool3"]:
+            t = InstalledTool(
+                name=name,
+                version="1.0",
+                method="pip",
+                source=name,
+                ref=None,
+                commit=None,
+                entry_command=name,
+                entry_script=None,
+                installed_at=now,
+                updated_at=now,
+            )
+            add_installed(t)
+
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        # Target is a username - should match tool1 and tool3
+        result = runner.invoke(app, ["auto", "someuser", "--dry-run"])
+        assert result.exit_code == 0
+        assert "tool1" in result.output
+        assert "tool3" in result.output
+        assert "tool2" not in result.output  # Not installed
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_auto_reports_not_installed_separately(monkeypatch, tmp_path):
+    """auto reports not-installed-but-matching tools separately."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="installed_tool",
+                display_name="Installed Tool",
+                description="Accepts username",
+                install=Install(method="pip", package="installed_tool"),
+                entrypoint=Entrypoint(command="installed_tool"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+            Tool(
+                name="not_installed_tool",
+                display_name="Not Installed Tool",
+                description="Accepts username",
+                install=Install(method="pip", package="not_installed_tool"),
+                entrypoint=Entrypoint(command="not_installed_tool"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from datetime import datetime, timezone
+
+        from otinstaller.state import InstalledTool, add_installed
+
+        now = datetime.now(timezone.utc).isoformat()
+        # Only installed_tool is installed
+        t = InstalledTool(
+            name="installed_tool",
+            version="1.0",
+            method="pip",
+            source="installed_tool",
+            ref=None,
+            commit=None,
+            entry_command="installed_tool",
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+        add_installed(t)
+
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["auto", "someuser", "--dry-run"])
+        assert result.exit_code == 0
+        assert "installed_tool" in result.output
+        assert "not_installed_tool" in result.output
+        assert "not installed" in result.output
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_auto_zero_matching_installed_tools(monkeypatch, tmp_path):
+    """auto with zero matching installed tools reports correctly, exit 0."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="tool1",
+                display_name="Tool 1",
+                description="Accepts username",
+                install=Install(method="pip", package="tool1"),
+                entrypoint=Entrypoint(command="tool1"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        # No tools installed, target is username and tool accepts username but not installed
+        result = runner.invoke(app, ["auto", "someuser", "--dry-run"])
+        assert result.exit_code == 0
+        assert "no installed tools accept 'username' targets" in result.output
+        assert "tool1" in result.output  # Suggested as matching but not installed
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_auto_dry_run_makes_no_calls(monkeypatch, tmp_path):
+    """auto --dry-run makes no calls to run_tools_parallel."""
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="tool1",
+                display_name="Tool 1",
+                description="Accepts username",
+                install=Install(method="pip", package="tool1"),
+                entrypoint=Entrypoint(command="tool1"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from datetime import datetime, timezone
+
+        from otinstaller.state import InstalledTool, add_installed
+
+        now = datetime.now(timezone.utc).isoformat()
+        t = InstalledTool(
+            name="tool1",
+            version="1.0",
+            method="pip",
+            source="tool1",
+            ref=None,
+            commit=None,
+            entry_command="tool1",
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+        add_installed(t)
+
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+
+        runner = CliRunner()
+
+        with patch("otinstaller.cli.run_tools_parallel") as mock_run_parallel:
+            result = runner.invoke(app, ["auto", "someuser", "--dry-run"])
+            assert result.exit_code == 0
+            mock_run_parallel.assert_not_called()
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_auto_without_yes_no_tty_refuses(monkeypatch, tmp_path):
+    """auto without --yes and no tty refuses."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="tool1",
+                display_name="Tool 1",
+                description="Accepts username",
+                install=Install(method="pip", package="tool1"),
+                entrypoint=Entrypoint(command="tool1"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from datetime import datetime, timezone
+
+        from otinstaller.state import InstalledTool, add_installed
+
+        now = datetime.now(timezone.utc).isoformat()
+        t = InstalledTool(
+            name="tool1",
+            version="1.0",
+            method="pip",
+            source="tool1",
+            ref=None,
+            commit=None,
+            entry_command="tool1",
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+        add_installed(t)
+
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        # No --yes and no tty
+        result = runner.invoke(app, ["auto", "someuser"], input="")
+        assert result.exit_code == 1
+        assert "confirmation needed" in result.output
+    finally:
+        otinstaller.registry.load_registry = original_load_registry
+
+
+def test_auto_calls_run_tools_parallel_correctly(monkeypatch, tmp_path):
+    """auto correctly calls run_tools_parallel with right arguments."""
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.registry
+
+    original_load_registry = otinstaller.registry.load_registry
+    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
+
+    def mock_load_registry(path):
+        return [
+            Tool(
+                name="tool1",
+                display_name="Tool 1",
+                description="Accepts username",
+                install=Install(method="pip", package="tool1"),
+                entrypoint=Entrypoint(command="tool1"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+            Tool(
+                name="tool2",
+                display_name="Tool 2",
+                description="Accepts username",
+                install=Install(method="pip", package="tool2"),
+                entrypoint=Entrypoint(command="tool2"),
+                api_keys=ApiKeys(required=(), optional=()),
+                capabilities=[],
+                tier="community",
+                accepts=("username",),
+            ),
+        ]
+
+    otinstaller.registry.load_registry = mock_load_registry
+
+    try:
+        from datetime import datetime, timezone
+
+        from otinstaller.state import InstalledTool, add_installed
+
+        now = datetime.now(timezone.utc).isoformat()
+        for name in ["tool1", "tool2"]:
+            t = InstalledTool(
+                name=name,
+                version="1.0",
+                method="pip",
+                source=name,
+                ref=None,
+                commit=None,
+                entry_command=name,
+                entry_script=None,
+                installed_at=now,
+                updated_at=now,
+            )
+            add_installed(t)
+
+        from typer.testing import CliRunner
+
+        from otinstaller.cli import app
+        from otinstaller.results import RunMeta
+
+        mock_meta1 = RunMeta(
+            command=["tool1", "someuser"],
+            tool="tool1",
+            tool_version="1.0",
+            target="someuser",
+            case=None,
+            started_at="2024-01-01T00:00:00+00:00",
+            ended_at="2024-01-01T00:00:01+00:00",
+            duration_seconds=1.0,
+            exit_code=0,
+            status="complete",
+            output_path="tool1/someuser/result.txt",
+            sha256="abc123",
+            bytes=100,
+        )
+        mock_meta2 = RunMeta(
+            command=["tool2", "someuser"],
+            tool="tool2",
+            tool_version="1.0",
+            target="someuser",
+            case=None,
+            started_at="2024-01-01T00:00:00+00:00",
+            ended_at="2024-01-01T00:00:01+00:00",
+            duration_seconds=1.0,
+            exit_code=0,
+            status="complete",
+            output_path="tool2/someuser/result.txt",
+            sha256="def456",
+            bytes=100,
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "--yes"])
+        assert result.exit_code == 0
+
+        # Create tool directories for the mock tools
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir(parents=True, exist_ok=True)
+        (tools_dir / "tool1").mkdir(parents=True, exist_ok=True)
+        (tools_dir / "tool2").mkdir(parents=True, exist_ok=True)
+
+        with patch(
+            "otinstaller.cli.run_tools_parallel", return_value=[mock_meta1, mock_meta2]
+        ) as mock_run_parallel:
+            with patch("otinstaller.cli.write_meta"):
+                from typer.testing import CliRunner
+
+                from otinstaller.cli import app
+
+                runner = CliRunner()
+                result = runner.invoke(app, ["auto", "someuser", "--parallel", "2", "--yes"])
+                assert result.exit_code == 0
+
+                mock_run_parallel.assert_called_once()
+                call_args = mock_run_parallel.call_args
+                # target, case, max_parallel, stream are keyword-only
+                assert call_args.kwargs["max_parallel"] == 2
+                assert call_args.kwargs["target"] == "someuser"
+                assert call_args.kwargs["case"] is None
+                # tools is the first positional arg (index 0)
+                tools = call_args.args[0]
+                assert len(tools) == 2
+                tool_names = {t.name for t in tools}
+                assert tool_names == {"tool1", "tool2"}
+    finally:
+        otinstaller.registry.load_registry = original_load_registry

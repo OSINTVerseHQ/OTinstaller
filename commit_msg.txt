@@ -1,1 +1,1 @@
-add indicator extraction and run diff commands
+fix auto command incorrectly calling parallel runner
