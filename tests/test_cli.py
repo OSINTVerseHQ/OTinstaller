@@ -1078,7 +1078,7 @@ def test_run_single_tool_still_works(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
             with patch("otinstaller.cli.write_meta") as _:
                 # Use single -- (Click strips it, registry-based parsing handles the rest)
@@ -1178,7 +1178,7 @@ def test_run_multiple_tool_names(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool") as mock_run_tool:
             with patch(
                 "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
@@ -1264,7 +1264,7 @@ def test_run_parallel_single_tool_uses_single_path(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
             with patch("otinstaller.cli.run_tools_parallel") as mock_run_parallel:
                 with patch("otinstaller.cli.write_meta") as _:
@@ -1363,7 +1363,7 @@ def test_run_parallel_multiple_tools_uses_parallel_path(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=meta1) as mock_run_tool:
             with patch(
                 "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
@@ -1466,7 +1466,7 @@ def test_run_parallel_custom_parallel_value(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=meta1) as mock_run_tool:
             with patch(
                 "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
@@ -1550,7 +1550,7 @@ def test_run_parallel_invalid_parallel_exits(monkeypatch, tmp_path):
         },
     )()
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool", return_value=mock_meta) as mock_run_tool:
             with patch("otinstaller.cli.run_tools_parallel") as mock_run_parallel:
                 with patch("otinstaller.cli.write_meta") as _:
@@ -1655,7 +1655,7 @@ def test_run_parallel_exit_code_all_succeed(monkeypatch, tmp_path):
         bytes=100,
     )
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool") as _:
             with patch("otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]) as _:
                 with patch("otinstaller.cli.write_meta") as _:
@@ -1748,7 +1748,7 @@ def test_run_parallel_exit_code_any_failed(monkeypatch, tmp_path):
         bytes=100,
     )
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.cli.run_tool") as _:
             with patch("otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]) as _:
                 with patch("otinstaller.cli.write_meta") as _:
@@ -1864,7 +1864,7 @@ def test_run_parallel_summary_line_correct(monkeypatch, tmp_path):
         bytes=100,
     )
 
-    with patch("otinstaller.state.get_installed", side_effect=mock_get_installed):
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
         with patch("otinstaller.runner.run_tool", side_effect=[meta1, meta2, meta3]):
             with patch("otinstaller.cli.write_meta") as _:
                 result = runner.invoke(
@@ -2049,3 +2049,265 @@ def test_keys_check_coverage_hint(monkeypatch, tmp_path):
         # Adding KEY_B would unlock tool2 (needs KEY_A and KEY_B, has KEY_A)
         # and tool3 (needs KEY_B, has none) -> 2 tools
         assert "Adding KEY_B would unlock 2 more tool(s)" in result.output
+
+
+# Extract CLI tests
+
+
+def test_extract_with_case_scans_case_directory(monkeypatch, tmp_path):
+    """extract with --case scans the right directory."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create case directory structure
+    case_dir = tmp_path / "results" / "cases" / "mycase" / "tool" / "target"
+    case_dir.mkdir(parents=True)
+    file1 = case_dir / "result.txt"
+    file1.write_text("email@test.com")
+
+    result = runner.invoke(app, ["extract", "ignored", "--case", "mycase"])
+    assert result.exit_code == 0
+    assert "email@test.com" in result.output
+
+
+def test_extract_unknown_tool_errors(monkeypatch, tmp_path):
+    """extract with an unknown tool/path name errors correctly."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    result = runner.invoke(app, ["extract", "nonexistent"])
+    assert result.exit_code == 1
+    assert "error: 'nonexistent' is not a known installed tool" in result.output
+
+
+def test_extract_json_shape(monkeypatch, tmp_path):
+    """extract --json shape is correct."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create a case with an email
+    case_dir = tmp_path / "results" / "cases" / "mycase" / "tool" / "target"
+    case_dir.mkdir(parents=True)
+    file1 = case_dir / "result.txt"
+    file1.write_text("email@test.com")
+
+    import json
+
+    result = runner.invoke(app, ["extract", "ignored", "--case", "mycase", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "emails" in data
+    assert "domains" in data
+    assert "ips" in data
+    assert "urls" in data
+    assert "email@test.com" in data["emails"]
+
+
+def test_extract_nothing_found_prints_message(monkeypatch, tmp_path):
+    """extract with nothing found prints 'no indicators found'."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # Create case with no indicators
+    case_dir = tmp_path / "results" / "cases" / "mycase" / "tool" / "target"
+    case_dir.mkdir(parents=True)
+    file1 = case_dir / "result.txt"
+    file1.write_text("no indicators here")
+
+    result = runner.invoke(app, ["extract", "ignored", "--case", "mycase"])
+    assert result.exit_code == 0
+    assert "no indicators found" in result.output
+
+
+# Diff CLI tests
+
+
+def test_diff_fewer_than_two_runs_errors(monkeypatch, tmp_path):
+    """diff with fewer than 2 runs reports correctly and exits 1."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["init", "--yes"])
+    assert result.exit_code == 0
+
+    # No runs exist
+    result = runner.invoke(app, ["diff", "tool", "target"])
+    assert result.exit_code == 1
+    assert "no runs found" in result.output
+
+
+def test_diff_json_shape(monkeypatch, tmp_path):
+    """diff --json shape is correct."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.diff
+
+    original_get_results = otinstaller.diff.get_results_dir
+    otinstaller.diff.get_results_dir = lambda: tmp_path / "results"
+
+    try:
+        # Create two runs
+        base = tmp_path / "results"
+        tool_dir = base / "tool" / "target"
+        tool_dir.mkdir(parents=True)
+
+        file1 = tool_dir / "20240101-120000_tool_target_abc123.txt"
+        file2 = tool_dir / "20240102-120000_tool_target_def456.txt"
+        file1.write_text("line1\nline2\n")
+        file2.write_text("line1\nline2\nline3\n")
+
+        import json
+
+        file1.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-01T00:00:00+00:00"})
+        )
+        file2.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-02T00:00:00+00:00"})
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["diff", "tool", "target", "--json"])
+        assert result.exit_code == 0
+
+        data = json.loads(result.output)
+        assert "added" in data
+        assert "removed" in data
+        assert "older_file" in data
+        assert "newer_file" in data
+        assert "older_date" in data
+        assert "newer_date" in data
+        assert "line3" in data["added"]
+    finally:
+        otinstaller.diff.get_results_dir = original_get_results
+
+
+def test_diff_shows_differences(monkeypatch, tmp_path):
+    """diff with real differences shows added/removed correctly."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.diff
+
+    original_get_results = otinstaller.diff.get_results_dir
+    otinstaller.diff.get_results_dir = lambda: tmp_path / "results"
+
+    try:
+        # Create two runs with known differences
+        base = tmp_path / "results"
+        tool_dir = base / "tool" / "target"
+        tool_dir.mkdir(parents=True)
+
+        file1 = tool_dir / "20240101-120000_tool_target_abc123.txt"
+        file2 = tool_dir / "20240102-120000_tool_target_def456.txt"
+        file1.write_text("common\nold_line\n")
+        file2.write_text("common\nnew_line\n")
+
+        import json
+
+        file1.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-01T00:00:00+00:00"})
+        )
+        file2.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-02T00:00:00+00:00"})
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["diff", "tool", "target"])
+        assert result.exit_code == 0
+        assert "comparing" in result.output
+        assert "+ new_line" in result.output
+        assert "- old_line" in result.output
+    finally:
+        otinstaller.diff.get_results_dir = original_get_results
+
+
+def test_diff_no_changes(monkeypatch, tmp_path):
+    """diff with identical files reports no changes."""
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    import otinstaller.diff
+
+    original_get_results = otinstaller.diff.get_results_dir
+    otinstaller.diff.get_results_dir = lambda: tmp_path / "results"
+
+    try:
+        # Create two runs with identical content
+        base = tmp_path / "results"
+        tool_dir = base / "tool" / "target"
+        tool_dir.mkdir(parents=True)
+
+        file1 = tool_dir / "20240101-120000_tool_target_abc123.txt"
+        file2 = tool_dir / "20240102-120000_tool_target_def456.txt"
+        content = "same\ncontent\n"
+        file1.write_text(content)
+        file2.write_text(content)
+
+        import json
+
+        file1.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-01T00:00:00+00:00"})
+        )
+        file2.with_suffix(".meta.json").write_text(
+            json.dumps({"started_at": "2024-01-02T00:00:00+00:00"})
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["diff", "tool", "target"])
+        assert result.exit_code == 0
+        assert "no changes between these two runs" in result.output
+    finally:
+        otinstaller.diff.get_results_dir = original_get_results

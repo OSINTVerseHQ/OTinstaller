@@ -1,0 +1,1 @@
+add indicator extraction and run diff commands
