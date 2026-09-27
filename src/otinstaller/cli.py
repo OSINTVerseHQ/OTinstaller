@@ -24,6 +24,8 @@ from otinstaller.config import (
     get_results_dir,
     get_tools_dir,
 )
+from otinstaller.diff import diff_runs, find_recent_runs
+from otinstaller.extract import extract_from_files
 from otinstaller.installer import (
     AlreadyInstalled,
     InstallError,
@@ -46,7 +48,7 @@ from otinstaller.registry import (
 )
 from otinstaller.results import write_meta
 from otinstaller.runner import run_tool, run_tools_parallel
-from otinstaller.state import list_installed
+from otinstaller.state import get_installed, list_installed
 
 app = typer.Typer(
     add_completion=False,
@@ -528,7 +530,6 @@ def run(
         raise typer.Exit(code=1)
 
     # Check if all tools are installed
-    from otinstaller.state import get_installed
 
     installed_tools = {}
     for name, _t in tools:
@@ -682,7 +683,7 @@ def update(
         versions_differ,
     )
     from otinstaller.registry import default_registry_path, find_tool, load_registry
-    from otinstaller.state import get_installed, list_installed
+    from otinstaller.state import list_installed
 
     # Load registry
     tools_registry = load_registry(default_registry_path())
@@ -864,6 +865,135 @@ def update(
     else:
         # For check-only, always exit 0 (informational only)
         pass
+
+
+@app.command()
+def extract(
+    target: Annotated[str, typer.Argument(help="Tool name or path to scan")],
+    case: Annotated[
+        str | None, typer.Option("--case", help="Scan all results under a case")
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Extract indicators from saved result files."""
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.config import get_results_dir
+    from otinstaller.state import get_installed
+
+    if case:
+        base = get_results_dir() / "cases" / case
+        if not base.exists():
+            typer.echo(f"error: case '{case}' not found", err=True)
+            raise typer.Exit(code=1)
+        # Recursively find all .txt files
+        paths = list(base.rglob("*.txt"))
+    else:
+        # Check if target is an installed tool
+        installed = get_installed(target)
+        if installed:
+            # Scan results for this tool
+            base = get_results_dir()
+            tool_dir = base / target
+            if not tool_dir.exists():
+                typer.echo(f"no results found for {target}")
+                raise typer.Exit(code=0)
+            paths = list(tool_dir.rglob("*.txt"))
+        else:
+            # Check if target is a path
+            path = Path(target)
+            if path.exists():
+                if path.is_file():
+                    paths = [path]
+                else:
+                    paths = list(path.rglob("*.txt"))
+            else:
+                typer.echo(
+                    f"error: '{target}' is not a known installed tool or existing path",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+
+    if not paths:
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"emails": [], "domains": [], "ips": [], "urls": []}))
+        else:
+            typer.echo("no indicators found")
+        raise typer.Exit(code=0)
+
+    result = extract_from_files(paths)
+
+    if json_output:
+        import json
+
+        typer.echo(json.dumps(result, indent=2))
+        return
+
+    # Human output
+    any_found = False
+    for category, values in result.items():
+        if values:
+            any_found = True
+            typer.echo(f"{category.capitalize()}:")
+            for v in values:
+                typer.echo(f"  {v}")
+            typer.echo()
+
+    if not any_found:
+        typer.echo("no indicators found")
+
+
+@app.command()
+def diff(
+    tool: Annotated[str, typer.Argument(help="Tool name")],
+    target: Annotated[str, typer.Argument(help="Target to compare")],
+    case: Annotated[
+        str | None, typer.Option("--case", help="Case name (default: main results)")
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Compare two most recent runs of the same tool against the same target."""
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    runs = find_recent_runs(tool, target, case)
+    if len(runs) < 2:
+        count = len(runs)
+        if count == 0:
+            typer.echo("no runs found", err=True)
+        else:
+            typer.echo("not enough runs to compare - only 1 run found", err=True)
+        raise typer.Exit(code=1)
+
+    # Newest first, so runs[0] is newest, runs[1] is older
+    diff_result = diff_runs(runs[1], runs[0])
+
+    if json_output:
+        import json
+
+        typer.echo(json.dumps(diff_result, indent=2))
+        return
+
+    # Human output
+    typer.echo(f"comparing {diff_result['older_date']} to {diff_result['newer_date']}")
+
+    if not diff_result["added"] and not diff_result["removed"]:
+        typer.echo("no changes between these two runs")
+        return
+
+    for line in diff_result["added"]:
+        typer.echo(f"+ {line}")
+    for line in diff_result["removed"]:
+        typer.echo(f"- {line}")
 
 
 @app.command()
