@@ -1145,10 +1145,83 @@ def auto(
 
 
 @app.command()
-def example(tool: Annotated[str, typer.Argument(help="Tool name")]):
-    """Show usage examples for a tool."""
-    typer.echo("not implemented yet")
-    raise typer.Exit(code=2)
+def example(
+    tool: Annotated[str, typer.Argument(help="Tool name")],
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Show example output for a tool."""
+    import sys
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.registry import default_registry_path, find_tool, load_registry
+
+    tools_registry = load_registry(default_registry_path())
+    tool_obj = find_tool(tools_registry, tool)
+    if not tool_obj:
+        suggestions = suggest_names(tools_registry, tool)
+        msg = f"error: unknown tool '{tool}'"
+        if suggestions:
+            msg += f"\ndid you mean: {', '.join(suggestions)}?"
+        typer.echo(msg, err=True)
+        raise typer.Exit(code=1)
+
+    if not tool_obj.example:
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"tool": tool_obj.name, "has_example": False, "content": None}))
+        else:
+            typer.echo(f"no example available for {tool_obj.name} yet")
+            msg = (
+                f"install it and run it yourself to see real output: "
+                f"otinstaller install {tool_obj.name}"
+            )
+            typer.echo(msg)
+        raise typer.Exit(code=0)
+
+    # Load example file from package data
+    try:
+        import importlib.resources
+
+        from otinstaller import data
+
+        example_path = tool_obj.example
+        # example field is like "examples/toolname.txt"
+        parts = example_path.split("/")
+        if len(parts) != 2 or parts[0] != "examples":
+            raise ValueError(f"invalid example path format: {example_path}")
+        filename = parts[1]
+        # Use importlib.resources.files to access the examples directory
+        examples_dir = importlib.resources.files(data) / "examples"
+        content = (examples_dir / filename).read_text(encoding="utf-8")
+    except (FileNotFoundError, ValueError, ModuleNotFoundError, AttributeError) as e:
+        if json_output:
+            import json
+
+            typer.echo(
+                json.dumps(
+                    {
+                        "tool": tool_obj.name,
+                        "has_example": False,
+                        "content": None,
+                        "error": str(e),
+                    }
+                )
+            )
+        else:
+            typer.echo(f"error: example file for {tool_obj.name} could not be loaded", err=True)
+        raise typer.Exit(code=1) from None
+
+    if json_output:
+        import json
+
+        typer.echo(json.dumps({"tool": tool_obj.name, "has_example": True, "content": content}))
+    else:
+        typer.echo(f"example output for {tool_obj.name}:")
+        typer.echo(content)
 
 
 @app.command()

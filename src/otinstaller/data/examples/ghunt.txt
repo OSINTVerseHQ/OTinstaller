@@ -1,0 +1,64 @@
+example output for ghunt:
+------------------------------------------------------------
+[+] GHunt v2.3.4 - Google Account OSINT
+[+] Target: exampleuser@gmail.com
+[+] Started: 2024-01-15 10:30:00 UTC
+
+[+] Account Found: True
+[+] Account ID: 123456789012345678901
+[+] Email: exampleuser@gmail.com
+[+] Name: Example User
+[+] Profile Photo: https://lh3.googleusercontent.com/...
+[+] Creation Date: 2015-03-15T14:22:10.123Z
+[+] Last Sign-in: 2024-01-14T08:15:30.456Z
+
+[+] Google Services:
+    [+] YouTube: True
+        Channel: UCXXXXXXXXXXXXXXXXXXXXXX
+        Subscribers: 1,234
+        Videos: 42
+    [+] Google Maps: True
+        Reviews: 47
+        Photos: 123
+        Local Guides Level: 6
+    [+] Google Drive: True
+        Storage Used: 12.3 GB / 15 GB
+        Files: 1,456
+    [+] Google Photos: True
+        Albums: 12
+        Photos: 2,341
+    [+] Google Play: True
+        Apps Installed: 87
+        Reviews Written: 23
+    [+] Google Calendar: True
+        Calendars: 4
+    [+] Google Contacts: True
+        Contacts: 1,234
+    [+] Gmail: True
+        Labels: 15
+        Filters: 8
+    [+] Google Keep: True
+        Notes: 47
+    [+] Google Tasks: True
+        Lists: 3
+        Tasks: 23
+
+[+] Google Maps Timeline:
+    [+] Last 30 days: 1,247 location points
+    [+] Countries visited: 3
+    [+] Cities visited: 12
+
+[+] YouTube Activity:
+    [+] Liked videos: 234
+    [+] Subscriptions: 87
+    [+] Playlists: 12
+
+[+] Security:
+    [+] 2FA Enabled: True (Authenticator App)
+    [+] Recovery Email: recovery@example.com
+    [+] Recovery Phone: +1-555-XXX-XXXX
+    [+] Last Password Change: 2023-11-20
+    [+] Recent Security Events: 3 (all recognized)
+
+------------------------------------------------------------
+(Example truncated - real output contains more detailed activity data)
