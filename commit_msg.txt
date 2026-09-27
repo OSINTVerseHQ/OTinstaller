@@ -1,1 +1,0 @@
-fix auto command passing InstalledTool instead of Tool object
