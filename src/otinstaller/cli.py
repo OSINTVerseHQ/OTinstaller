@@ -1099,7 +1099,10 @@ def auto(
             raise typer.Exit(code=1)
 
     # Run the matching tools using existing parallel execution
-    tool_list = list(installed_matching.values())
+    # We need Tool objects from the registry (with .entrypoint), not InstalledTool objects
+    # Map installed tool names back to their full Tool objects from the registry
+    installed_tool_names = set(installed_matching.keys())
+    tool_list = [t for t in matching_tools if t.name in installed_tool_names]
     roots = {t.name: get_tools_dir() / t.name for t in tool_list}
 
     try:
