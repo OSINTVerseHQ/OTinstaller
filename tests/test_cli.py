@@ -11,7 +11,6 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-import otinstaller
 from otinstaller.cli import app
 
 runner = CliRunner()
@@ -2855,43 +2854,11 @@ def test_example_with_real_file(monkeypatch, tmp_path):
     result = runner.invoke(app, ["init", "--yes"])
     assert result.exit_code == 0
 
-    # Create a mock tool with example pointing to a real example file in package data
-    from otinstaller.registry import ApiKeys, Entrypoint, Install, Tool
-
-    def mock_load_registry(path):
-        return [
-            Tool(
-                name="testtool",
-                display_name="Test Tool",
-                description="A tool with example",
-                install=Install(method="pip", package="testtool"),
-                entrypoint=Entrypoint(command="testtool"),
-                api_keys=ApiKeys(required=(), optional=()),
-                capabilities=[],
-                tier="community",
-                example="examples/testtool.txt",
-            ),
-        ]
-
-    original_load_registry = otinstaller.registry.load_registry
-    monkeypatch.setattr(otinstaller.registry, "load_registry", mock_load_registry)
-
-    # Create example file in the package data directory
-
-    from otinstaller import data
-
-    examples_dir = importlib.resources.files(data) / "examples"
-    examples_dir.mkdir(parents=True, exist_ok=True)
-    example_file = examples_dir / "testtool.txt"
-    example_file.write_text("example output for testtool\n")
-
-    try:
-        runner = CliRunner()
-        result = runner.invoke(app, ["example", "testtool"])
-        assert result.exit_code == 0
-        assert "example output for testtool" in result.output
-    finally:
-        otinstaller.registry.load_registry = original_load_registry
+    # Use sherlock which has a real example file in the package data
+    result = runner.invoke(app, ["example", "sherlock"])
+    assert result.exit_code == 0
+    assert "example output for sherlock" in result.output
+    assert "[+] Checking username: exampleuser" in result.output
 
 
 def test_example_no_example_field(monkeypatch, tmp_path):
@@ -3024,6 +2991,33 @@ def test_example_json_output(monkeypatch, tmp_path):
                 otinstaller.registry.load_registry = original_load_registry
 
 
+def test_examples_dir_matches_registry(monkeypatch, tmp_path):
+    """Guard test: every example file must correspond to a tool in registry."""
+    from otinstaller import data
+    from otinstaller.registry import default_registry_path, load_registry
+
+    # Get all example files from the package data directory
+    examples_dir = importlib.resources.files(data) / "examples"
+    example_files = {f.name for f in examples_dir.iterdir() if f.is_file() and f.suffix == ".txt"}
+
+    # Get all tools from registry that have example field
+    tools_registry = load_registry(default_registry_path())
+    registry_examples = {t.example for t in tools_registry if t.example}
+
+    # Every example file must have a corresponding tool in registry
+    for example_file in example_files:
+        expected_path = f"examples/{example_file}"
+        msg = f"Example file {example_file} has no corresponding tool in registry"
+        assert expected_path in registry_examples, msg
+
+    # Every tool with example field must have a corresponding file
+    for example_path in registry_examples:
+        filename = example_path.split("/")[-1]
+        assert filename in example_files, (
+            f"Registry references example {example_path} but file {filename} does not exist"
+        )
+
+
 def test_example_missing_file_errors_cleanly(monkeypatch, tmp_path):
     """example for a tool whose example file is missing errors cleanly."""
     from typer.testing import CliRunner
@@ -3057,7 +3051,8 @@ def test_example_missing_file_errors_cleanly(monkeypatch, tmp_path):
             ),
         ]
 
-    otinstaller.registry.load_registry = mock_load_registry
+    original_load_registry = otinstaller.registry.load_registry
+    monkeypatch.setattr(otinstaller.registry, "load_registry", mock_load_registry)
 
     try:
         runner = CliRunner()
