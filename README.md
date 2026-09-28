@@ -8,21 +8,7 @@ otinstaller does not write the tools. It installs third-party software from PyPI
 
 Status: early development. Not published to PyPI yet.
 
-## Supported Linux
-
-| Distribution | Version | How it is tested |
-| --- | --- | --- |
-| Ubuntu | 22.04 LTS | CI, on every push and pull request |
-| Ubuntu | 24.04 LTS | CI, on every push and pull request |
-| Debian | 12 (bookworm) | CI, in a Debian 12 container |
-| Arch Linux | current rolling release | CI, in the `archlinux:latest` image |
-| Kali Linux | current release | Checked by hand before a release |
-
-Ubuntu CI runs on Python 3.10, 3.11 and 3.12. Debian and Arch use the Python that ships with that image. Kali is Debian-based, so the Debian 12 job covers the same package family. `otinstaller doctor` checks the machine you are on and names the package to install when git or `venv` is missing.
-
-On Debian, Ubuntu and Kali the venv package is `python3-venv`.
-
-Managed tools are installed with pip or git only. Each tool gets its own virtualenv under `~/.otinstaller/tools/<name>/`. Nothing is installed into system Python. Tools that need Go, Rust, Node or Docker are not supported.
+Linux only. Python 3.10 or newer, git, and a working `venv` module are required. The distributions and versions that are tested are listed under [Supported Linux](#supported-linux).
 
 ## Install from a checkout
 
@@ -52,9 +38,13 @@ The published install, once it exists, will be:
 pip install otinstaller
 ```
 
-## First session
+## Usage
 
-`init` creates `~/.otinstaller/`, writes an env file for API keys (mode 600), and asks you to accept the responsible use notice. Install is refused until you accept.
+`init` creates `~/.otinstaller/`, writes an env file for API keys (mode 600), and asks you to accept the responsible use notice. Install is refused until you accept. `install` prints what it will fetch and asks for confirmation. Pass `--yes` (or `-y`) when there is no terminal. A non-interactive install without `--yes` exits with an error rather than guessing.
+
+Each block is one command. On GitHub, use the copy button on the block. Replace `<tool>` with a name from the [covered tools](#covered-tools) table.
+
+### Check the machine, then install and run one tool
 
 ```bash
 otinstaller doctor
@@ -80,8 +70,6 @@ otinstaller install sherlock
 otinstaller run sherlock -- someexampleuser123
 ```
 
-`install` prints what it will fetch and asks for confirmation. Pass `--yes` (or `-y`) on `init` and `install` when there is no terminal, for example in a script. A non-interactive install without `--yes` exits with an error rather than guessing.
-
 A successful run prints the exit code, the output path, and a SHA-256 of the file:
 
 ```text
@@ -91,6 +79,76 @@ sha256  3b1c...
 ```
 
 Add `--verbose` on `run` to stream the tool's output to the terminal while it is also written to disk.
+
+### Pass a tool its own flags
+
+Arguments after `--` go to the tool unchanged.
+
+```bash
+otinstaller run theharvester -- -d example.com -b bing
+```
+
+### Run several tools on the same target
+
+They share the same arguments and run together, up to four at a time. `--parallel` changes that limit.
+
+```bash
+otinstaller run sherlock maigret -- someexampleuser123
+```
+
+```bash
+otinstaller run sherlock maigret --parallel 2 -- someexampleuser123
+```
+
+If the target happens to be a registered tool name, pass it with `--target` so it is not read as another tool to run.
+
+```bash
+otinstaller run sherlock --target holehe -- holehe
+```
+
+### Keep related runs in one case
+
+`--case` groups output under one folder. The same flag works on `run`, `auto`, `extract` and `diff`.
+
+```bash
+otinstaller run sherlock --case demo-run -- someexampleuser123
+```
+
+```bash
+otinstaller extract sherlock --case demo-run
+```
+
+```bash
+otinstaller diff sherlock someexampleuser123 --case demo-run
+```
+
+### Let otinstaller choose the tools
+
+`auto` classifies the target as an email, domain, IP address, URL or username, then runs every installed tool whose registry entry accepts that type. It does not install missing tools. It lists them and skips them. `--dry-run` prints the plan. `--type` overrides detection when the guess is wrong.
+
+```bash
+otinstaller auto --dry-run example.com
+```
+
+```bash
+otinstaller auto --type domain example.com
+```
+
+### Keys, updates and a failed install
+
+```bash
+otinstaller keys check
+```
+
+```bash
+otinstaller update sherlock --check-only
+```
+
+```bash
+otinstaller resume
+```
+
+The otinstaller process exit code follows the tool: a non-zero tool exit is a non-zero otinstaller exit. With several tools, any failure exits 1 after the summary line. A missing required API key is a warning on stderr. The tool still runs.
 
 ## Commands
 
@@ -114,48 +172,6 @@ Add `--verbose` on `run` to stream the tool's output to the terminal while it is
 `list`, `search`, `info`, `extract`, `diff`, `update --check-only`, `keys check` and `resume` accept `--json`.
 
 Unknown tool names exit with an error and, when possible, a short "did you mean" suggestion.
-
-## Running tools
-
-Arguments after `--` go to the tool unchanged:
-
-```bash
-otinstaller run theharvester -- -d example.com -b bing
-```
-
-You can name several tools. They share the same arguments and run together, up to four at a time. `--parallel` changes that limit.
-
-```bash
-otinstaller run sherlock maigret -- someexampleuser123
-```
-
-```bash
-otinstaller run sherlock maigret --parallel 2 -- someexampleuser123
-```
-
-The first argument that is not a registered tool name is treated as the start of the tool's own arguments. If that value is itself a tool name, pass it with `--target` so it is not read as another tool to run:
-
-```bash
-otinstaller run sherlock --target holehe -- holehe
-```
-
-`--case NAME` groups the output of related runs under one folder. The same flag works on `run`, `auto`, `extract` and `diff`.
-
-```bash
-otinstaller run sherlock --case demo-run -- someexampleuser123
-```
-
-`auto` classifies the target as an email, domain, IP address, URL or username, then runs every installed tool whose registry entry accepts that type. It does not install missing tools. It lists them and skips them. `--dry-run` prints the plan. `--type` overrides detection when the guess is wrong.
-
-```bash
-otinstaller auto --dry-run example.com
-```
-
-```bash
-otinstaller auto --type domain example.com
-```
-
-A missing required API key is a warning on stderr. The tool still runs. The otinstaller process exit code follows the tool: a non-zero tool exit is a non-zero otinstaller exit. With several tools, any failure exits 1 after the summary line.
 
 ## Where output goes
 
@@ -301,7 +317,31 @@ contributors accept no liability for misuse.
 
 Acceptance is stored in `~/.otinstaller/accepted.json` with the notice version. A newer notice version requires acceptance again.
 
-## Working on otinstaller
+## Supported Linux
+
+| Distribution | Version | How it is tested |
+| --- | --- | --- |
+| Ubuntu | 22.04 LTS | CI, on every push and pull request |
+| Ubuntu | 24.04 LTS | CI, on every push and pull request |
+| Debian | 12 (bookworm) | CI, in a Debian 12 container |
+| Arch Linux | current rolling release | CI, in the `archlinux:latest` image |
+| Kali Linux | current release | Checked by hand before a release |
+
+Ubuntu CI runs on Python 3.10, 3.11 and 3.12. Debian and Arch use the Python that ships with that image. Kali is Debian-based, so the Debian 12 job covers the same package family. `otinstaller doctor` checks the machine you are on and names the package to install when git or `venv` is missing.
+
+On Debian, Ubuntu and Kali the venv package is `python3-venv`.
+
+Managed tools are installed with pip or git only. Each tool gets its own virtualenv under `~/.otinstaller/tools/<name>/`. Nothing is installed into system Python. Tools that need Go, Rust, Node or Docker are not supported.
+
+## Authors
+
+otinstaller is written and maintained by otinstaller contributors. See [LICENSE](LICENSE).
+
+The tools in the covered tools table are separate projects. Their authors are the people named on each GitHub repository. otinstaller does not write those tools and does not claim them.
+
+## Contributing
+
+Install the development and pipeline extras, then run the same checks CI runs:
 
 ```bash
 pip install -e ".[dev,pipeline]"
@@ -319,11 +359,13 @@ ruff format --check .
 pytest
 ```
 
-The CLI in `src/otinstaller/cli.py` is a thin layer. Install, run, results and state live in importable modules under `src/otinstaller/`. Tests are in `tests/`.
+The CLI in `src/otinstaller/cli.py` is a thin layer. Install, run, results and state live in importable modules under `src/otinstaller/`. Tests are in `tests/`. A behavior change needs a test, including the failure case.
 
-The registry is produced by the pipeline in [pipeline/](pipeline/README.md): discover candidate repositories, install each in a sandbox, smoke-test it, and write entries for review. Generated output is not the registry the CLI loads until it is merged into `src/otinstaller/data/registry.yaml`.
+To propose a new tool, run the pipeline in [pipeline/](pipeline/README.md). It discovers candidate repositories, installs each in a sandbox, smoke-tests it, and writes entries for review. Generated output is not what the CLI loads until a person reviews it and it is merged into `src/otinstaller/data/registry.yaml`. Tag meanings are in [docs/TAGGING.md](docs/TAGGING.md). The denylist in [registry/denylist.yaml](registry/denylist.yaml) can be edited without a code change.
 
 Design notes that are easy to trip over are collected in [docs/DECISIONS.md](docs/DECISIONS.md).
+
+Open a pull request against this repository. Keep commit messages short and in the imperative mood, for example `add config module`.
 
 ## License
 
