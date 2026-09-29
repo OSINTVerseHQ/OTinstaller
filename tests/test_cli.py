@@ -3030,6 +3030,60 @@ def test_example_json_output(monkeypatch, tmp_path):
                 otinstaller.registry.load_registry = original_load_registry
 
 
+def test_install_needs_config_warning(monkeypatch, tmp_path):
+    """install prints warning for tools with needs_config after successful install."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    tools = [
+        {
+            "name": "configtool",
+            "display_name": "Config Tool",
+            "description": "A tool that needs config",
+            "install": {"method": "pip", "package": "configtool"},
+            "entrypoint": {"command": "configtool"},
+            "capabilities": [],
+            "api_keys": {
+                "required": ["API_KEY_REQUIRED"],
+                "optional": ["API_KEY_OPTIONAL"],
+            },
+            "needs_config": True,
+        }
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_install_tool(tool, force=False, stream=False):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=tool.name,
+            version="1.0",
+            method="pip",
+            source=tool.install.package,
+            ref=None,
+            commit=None,
+            entry_command=tool.name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    with patch("otinstaller.cli.install_tool", side_effect=mock_install_tool):
+        result = runner.invoke(app, ["install", "configtool", "--yes"])
+
+    assert result.exit_code == 0
+    assert "installed configtool" in result.output
+    assert "warning: configtool requires configuration" in result.output
+    assert "API_KEY_REQUIRED (required)" in result.output
+    assert "API_KEY_OPTIONAL (optional)" in result.output
+    assert "Set these in ~/.otinstaller/.env before running" in result.output
+
+
 def test_examples_dir_matches_registry(monkeypatch, tmp_path):
     """Guard test: every example file must correspond to a tool in registry."""
     from otinstaller import data
