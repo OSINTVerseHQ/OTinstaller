@@ -590,6 +590,18 @@ def install(
                 )
             else:
                 typer.echo(f"installed {result.name} {result.version}")
+            if tool.needs_config:
+                keys_needed = []
+                if tool.api_keys.required:
+                    keys_needed.extend(f"{k} (required)" for k in tool.api_keys.required)
+                if tool.api_keys.optional:
+                    keys_needed.extend(f"{k} (optional)" for k in tool.api_keys.optional)
+                if keys_needed:
+                    msg = (
+                        f"warning: {tool.name} requires configuration. "
+                        f"Set these in ~/.otinstaller/.env before running: {', '.join(keys_needed)}"
+                    )
+                    typer.echo(msg, err=True)
             installed_count += 1
         except AlreadyInstalled:
             if json_output:
