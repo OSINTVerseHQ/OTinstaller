@@ -1,0 +1,11 @@
+example output for zen:
+------------------------------------------------------------
+	Z E N v1.0
+
+[!] Total contributors: 3
+contributor1 : dev1@example.com
+contributor2 : dev2@example.com
+
+octocat : octocat@users.noreply.github.com
+------------------------------------------------------------
+(Example trimmed - real output starts with a green banner)

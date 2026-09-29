@@ -1,0 +1,17 @@
+example output for thebigbrother:
+------------------------------------------------------------
+[*] Checking username testuser on:
+
+[+] 9GAG: https://www.9gag.com/u/testuser
+[+] About.me: https://about.me/testuser
+[+] Bluesky: https://bsky.app/profile/testuser.bsky.social
+[+] GitLab: https://gitlab.com/testuser
+[+] HackerNews: https://news.ycombinator.com/user?id=testuser
+[+] Reddit: https://reddit.com/user/testuser
+[+] Telegram: https://t.me/testuser
+[+] Twitch: https://www.twitch.tv/testuser
+[+] YouTube: https://www.youtube.com/@testuser
+
+[*] Search completed with 178 results
+------------------------------------------------------------
+(Example trimmed - real output lists every site found)

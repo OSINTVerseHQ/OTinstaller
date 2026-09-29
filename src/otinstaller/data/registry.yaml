@@ -1671,3 +1671,107 @@ tools:
     p: --phone
   example: examples/telepathy.txt
 
+- name: neutrosint
+  display_name: NeutrOSINT
+  description: Check if an email address or username exists on ProtonMail.
+  repo: Kr0wZ/NeutrOSINT
+  license: MIT
+  tier: community
+  install:
+    method: git
+    url: https://github.com/Kr0wZ/NeutrOSINT.git
+    as_package: true
+  entrypoint:
+    command: neutrosint
+  smoke_args:
+  - --help
+  capabilities:
+  - email-search
+  - username-search
+  topics:
+  - email
+  - protonmail
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-29'
+    version: main
+    os: Ubuntu 26.04 LTS
+    python: 3.14.4
+  accepts:
+  - email
+  - username
+  input_types:
+    e: --email
+    u: --email
+  example: examples/neutrosint.txt
+
+- name: zen
+  display_name: Zen
+  description: Find email addresses of GitHub users, repositories and organizations.
+  repo: s0md3v/Zen
+  license: Apache-2.0
+  tier: community
+  install:
+    method: git
+    url: https://github.com/s0md3v/Zen.git
+    requirements: requirements.txt
+  entrypoint:
+    script: zen.py
+  smoke_args:
+  - --help
+  capabilities:
+  - email-search
+  topics:
+  - github
+  - email
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-29'
+    version: master
+    os: Ubuntu 26.04 LTS
+    python: 3.14.4
+  accepts:
+  - username
+  - url
+  input_types:
+    u: ""
+    url: ""
+  example: examples/zen.txt
+
+- name: thebigbrother
+  display_name: The Big Brother
+  description: Find usernames across social networks.
+  repo: chadi0x/TheBigBrother
+  license: MIT
+  tier: community
+  install:
+    method: git
+    url: https://github.com/chadi0x/TheBigBrother.git
+    as_package: true
+  entrypoint:
+    script: the_big_brother/__main__.py
+  smoke_args:
+  - --help
+  capabilities:
+  - username-search
+  topics:
+  - username
+  - social-media
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-29'
+    version: 7.0.0
+    os: Ubuntu 26.04 LTS
+    python: 3.14.4
+  accepts:
+  - username
+  input_types:
+    u: ""
+  example: examples/thebigbrother.txt
+
