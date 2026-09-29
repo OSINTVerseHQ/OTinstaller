@@ -1,0 +1,13 @@
+TorBot v4.3.0 output for http://example.com (with --disable-socks5):
+
+TorBot - Dark Web OSINT Tool
+GitHub: https://github.com/DedsecInside/TorBot
+LICENSE: GNU Public License v3
+
+Sorry. You are not using Tor.
+Your IP address appears to be: 36.255.185.133
+
+Title                  URL                                    Status                 Phone Numbers    Emails    Category
+---------------------  -------------------------------------  ---------------------  ---------------  --------  ------------------------
+Example Domain         http://example.com                     200 OK                 []               []        Business/Corporate
+301 Moved Permanently  https://iana.org/help/example-domains  301 Moved Permanently  []               []        Computers and Technology
