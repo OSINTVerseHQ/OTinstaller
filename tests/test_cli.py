@@ -851,11 +851,46 @@ def test_doctor_all_ok(monkeypatch, tmp_path):
 def test_doctor_not_linux(monkeypatch, tmp_path):
     """doctor exits 1 on non-Linux."""
     monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
-    monkeypatch.setattr("sys.platform", "win32")
 
-    result = runner.invoke(app, ["doctor"])
-    assert result.exit_code == 1
-    assert "[problem] platform is not Linux" in result.output
+    # CliRunner.invoke() breaks when sys.platform="win32" because click's testing
+    # internals try to use Windows-only APIs (_winapi, msvcrt) that don't exist on Linux.
+    # Test the real doctor command logic by calling the function directly with a mocked sys.
+    import sys
+    from unittest.mock import MagicMock
+    import typer
+    import io
+    from contextlib import redirect_stdout, redirect_stderr
+
+    # Import doctor first (click/typer loaded with real sys.platform="linux")
+    from otinstaller.cli import doctor
+
+    # Mock sys.platform for the function's internal import
+    real_sys = sys
+    mock_sys = MagicMock()
+    mock_sys.platform = "win32"
+    mock_sys.version_info = real_sys.version_info
+    mock_sys.executable = real_sys.executable
+    mock_sys.argv = ["otinstaller", "doctor"]
+
+    import sys as sys_module
+    sys_module.modules["sys"] = mock_sys
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    try:
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            doctor()
+    except typer.Exit as e:
+        exit_code = e.exit_code
+    else:
+        exit_code = 0
+
+    # Restore
+    sys_module.modules["sys"] = real_sys
+
+    output = stdout.getvalue()
+    assert exit_code == 1
+    assert "[problem] platform is not Linux" in output
 
 
 def test_doctor_python_version_problem(monkeypatch, tmp_path):
@@ -1197,7 +1232,9 @@ def test_run_multiple_tool_names(monkeypatch, tmp_path):
                     assert tools_arg[0].name == "sherlock"
                     assert tools_arg[1].name == "maigret"
                     extra_args = call_args[0][2]
-                    assert extra_args == ["someuser", "--timeout", "5"]
+                    assert isinstance(extra_args, dict)
+                    assert extra_args["sherlock"] == ["someuser", "--timeout", "5"]
+                    assert extra_args["maigret"] == ["someuser", "--timeout", "5"]
 
 
 def test_run_parallel_single_tool_uses_single_path(monkeypatch, tmp_path):

@@ -59,6 +59,19 @@ _ACCEPTS_VALUES = (
     "name",
 )
 
+_INPUT_TYPE_PREFIXES = (
+    "u",
+    "e",
+    "p",
+    "d",
+    "url",
+    "q",
+    "geo",
+    "tg",
+    "lat",
+    "lng",
+)
+
 
 @dataclass(frozen=True)
 class Tool:
@@ -80,6 +93,7 @@ class Tool:
     example: str | None = None
     verified: Verification | None = None
     accepts: tuple[str, ...] = ()
+    input_types: dict[str, str] = None
 
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
@@ -236,6 +250,21 @@ def _validate_stars(stars: int | None, tool_name: str) -> None:
         raise RegistryError(f"tool '{tool_name}': stars must be a non-negative integer")
 
 
+def _validate_input_types(input_types: dict[str, str] | None, tool_name: str) -> None:
+    if input_types is None:
+        return
+    if not isinstance(input_types, dict):
+        raise RegistryError(f"tool '{tool_name}': input_types must be a mapping")
+    for prefix, flag in input_types.items():
+        if prefix not in _INPUT_TYPE_PREFIXES:
+            raise RegistryError(
+                f"tool '{tool_name}': input_types prefix '{prefix}' must be one of "
+                f"{', '.join(_INPUT_TYPE_PREFIXES)}"
+            )
+        if not isinstance(flag, str):
+            raise RegistryError(f"tool '{tool_name}': input_types['{prefix}'] must be a string")
+
+
 def _validate_unknown_keys(data: dict, tool_name: str) -> None:
     known_keys = {
         "name",
@@ -256,6 +285,7 @@ def _validate_unknown_keys(data: dict, tool_name: str) -> None:
         "example",
         "verified",
         "accepts",
+        "input_types",
     }
     for key in data:
         if key not in known_keys:
@@ -313,6 +343,9 @@ def parse_tool(data: dict) -> Tool:
     stars = data.get("stars")
     _validate_stars(stars, tool_name)
 
+    input_types = data.get("input_types")
+    _validate_input_types(input_types, tool_name)
+
     verified = None
     if "verified" in data and data["verified"]:
         v = data["verified"]
@@ -342,6 +375,7 @@ def parse_tool(data: dict) -> Tool:
         example=data.get("example"),
         verified=verified,
         accepts=accepts,
+        input_types=input_types or {},
     )
 
 

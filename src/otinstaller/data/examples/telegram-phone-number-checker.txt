@@ -1,0 +1,4 @@
+Telegram Phone Number Checker example
+Phone: +15551234567
+Result: Found on Telegram
+Username: johndoe

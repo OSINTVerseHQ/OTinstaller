@@ -169,7 +169,7 @@ def run_tool(
 async def run_tools_parallel(
     tools: list[Tool],
     roots: dict[str, Path],
-    extra_args: list[str],
+    extra_args: list[str] | dict[str, list[str]],
     *,
     target: str | None,
     case: str | None,
@@ -181,18 +181,27 @@ async def run_tools_parallel(
     Each tool runs in its own thread via asyncio.to_thread, preserving the
     exact behavior of run_tool. Returns results in the same order as the
     input tools list.
+
+    extra_args can be a list (same args for all tools) or a dict mapping
+    tool name to its specific extra args list.
     """
     cancel_event = asyncio.Event()
     semaphore = asyncio.Semaphore(max_parallel)
 
+    def get_extra_args(tool_name: str) -> list[str]:
+        if isinstance(extra_args, dict):
+            return extra_args.get(tool_name, [])
+        return extra_args
+
     async def run_one(tool: Tool) -> RunMeta:
         root = roots[tool.name]
+        tool_extra_args = get_extra_args(tool.name)
         async with semaphore:
             return await asyncio.to_thread(
                 run_tool,
                 tool,
                 root,
-                extra_args,
+                tool_extra_args,
                 target=target,
                 case=case,
                 env_overrides=None,

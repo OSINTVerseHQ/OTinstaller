@@ -28,6 +28,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  input_types:
+    u: ""
   example: examples/maigret.txt
 - name: ghunt
   display_name: Ghunt
@@ -63,6 +65,9 @@ tools:
   accepts:
   - username
   - email
+  input_types:
+    u: --username
+    e: --email
   example: examples/ghunt.txt
 - name: theharvester
   display_name: theHarvester
@@ -94,6 +99,9 @@ tools:
     python: 3.12.14
   accepts:
   - domain
+  input_types:
+    d: --domain
+    e: --email
   example: examples/theharvester.txt
 - name: spiderfoot
   display_name: Spiderfoot
@@ -140,6 +148,10 @@ tools:
   - ip
   - username
   - email
+  input_types:
+    d: --domain
+    u: --username
+    e: --email
   example: examples/spiderfoot.txt
 - name: instaloader
   display_name: Instaloader
@@ -177,6 +189,9 @@ tools:
   accepts:
   - username
   - url
+  input_types:
+    u: --username
+    url: --url
 - name: sherlock
   display_name: Sherlock
   description: Hunt down social media accounts by username across social networks.
@@ -208,6 +223,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  input_types:
+    u: ""
   example: examples/sherlock.txt
 - name: holehe
   display_name: Holehe
@@ -244,7 +261,8 @@ tools:
     python: 3.12.14
   accepts:
   - email
-  - username
+  input_types:
+    e: ""
   example: examples/holehe.txt
 - name: bbot
   display_name: Bbot
@@ -285,6 +303,10 @@ tools:
   accepts:
   - domain
   - ip
+  - username
+  input_types:
+    d: --domain
+    u: --username
 - name: dnstwist
   display_name: Dnstwist
   description: Domain name permutation engine for detecting homograph phishing attacks,
@@ -318,6 +340,8 @@ tools:
   accepts:
   - domain
   - ip
+  input_types:
+    d: --domain
 - name: h8mail
   display_name: H8Mail
   description: Email OSINT & Password breach hunting tool, locally or using premium
@@ -351,6 +375,8 @@ tools:
     python: 3.12.14
   accepts:
   - email
+  input_types:
+    e: --email
 - name: user-scanner
   display_name: User Scanner
   description: (2-in-1) Email & Username OSINT suite featuring native MCP support
@@ -387,6 +413,9 @@ tools:
   accepts:
   - username
   - email
+  input_types:
+    u: --username
+    e: --email
 - name: torbot
   display_name: Torbot
   description: Dark Web OSINT Tool.
@@ -421,6 +450,9 @@ tools:
   accepts:
   - url
   - domain
+  input_types:
+    url: --url
+    d: --domain
 - name: toutatis
   display_name: Toutatis
   description: Toutatis is a tool that allows you to extract information from instagrams
@@ -456,6 +488,8 @@ tools:
     python: 3.12.14
   accepts:
   - phone
+  input_types:
+    p: --phone
 - name: ivre
   display_name: Ivre
   description: Network recon framework.
@@ -492,6 +526,8 @@ tools:
   accepts:
   - domain
   - ip
+  input_types:
+    d: --domain
 - name: aliens-eye
   display_name: Aliens Eye
   description: Hunt down 840+ social media accounts using AI.
@@ -525,6 +561,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  input_types:
+    u: --username
 - name: paramspider
   display_name: Paramspider
   description: Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further
@@ -561,6 +599,9 @@ tools:
   accepts:
   - domain
   - url
+  input_types:
+    d: --domain
+    url: --url
 - name: nexfil
   display_name: Nexfil
   description: OSINT tool for finding profiles by username.
@@ -592,6 +633,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  input_types:
+    u: --username
 - name: yark
   display_name: Yark
   description: OSINT for YouTube made simple.
@@ -628,6 +671,9 @@ tools:
   - url
   - username
   - name
+  input_types:
+    url: --url
+    u: --username
 - name: cloud-enum
   display_name: Cloud Enum
   description: Multi-cloud OSINT tool.
@@ -664,6 +710,8 @@ tools:
   accepts:
   - domain
   - ip
+  input_types:
+    d: --domain
 - name: ignorant
   display_name: Ignorant
   description: ignorant allows you to check if a phone number is used on different
@@ -697,6 +745,8 @@ tools:
     python: 3.12.14
   accepts:
   - phone
+  input_types:
+    p: --phone
 - name: socialscan
   display_name: Socialscan
   description: Python library for accurately querying username and email usage on
@@ -730,6 +780,8 @@ tools:
   accepts:
   - username
   - email
+  input_types:
+    q: ""
 - name: fsociety
   display_name: Fsociety
   description: A Modular Penetration Testing Framework.
@@ -770,6 +822,10 @@ tools:
   - domain
   - username
   - email
+  input_types:
+    d: --domain
+    u: --username
+    e: --email
 - name: onionsearch
   display_name: Onionsearch
   description: OnionSearch is a script that scrapes urls on different.
@@ -802,6 +858,8 @@ tools:
     python: 3.12.14
   accepts:
   - url
+  input_types:
+    url: --url
 - name: openosint
   display_name: Openosint
   description: AI-powered OSINT agent with interactive REPL, MCP server, and CLI.
@@ -843,6 +901,10 @@ tools:
   - username
   - email
   - domain
+  input_types:
+    u: --username
+    e: --email
+    d: --domain
 - name: crosslinked
   display_name: Crosslinked
   description: LinkedIn enumeration tool to extract valid employee names from an organization
@@ -884,6 +946,9 @@ tools:
   - username
   - email
   - name
+  input_types:
+    u: --username
+    e: --email
 - name: whatsapp-osint
   display_name: Whatsapp Osint
   description: WhatsApp spy - logs online/offline events from ANYONE in the world.
@@ -918,6 +983,8 @@ tools:
   accepts:
   - phone
   - name
+  input_types:
+    p: --phone
 - name: instagram-monitor
   display_name: Instagram Monitor
   description: Track Instagram users' activities, profile changes and capture content
@@ -952,6 +1019,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
+  input_types:
+    u: --username
 - name: mailaccess
   display_name: Mailaccess
   description: Free email OSINT tool, 2500+ platforms, identity clustering, breach
@@ -985,6 +1054,8 @@ tools:
     python: 3.12.14
   accepts:
   - email
+  input_types:
+    e: --email
 - name: secator
   display_name: Secator
   description: secator - the pentester's swiss knife.
@@ -1030,6 +1101,10 @@ tools:
   - ip
   - username
   - email
+  input_types:
+    d: --domain
+    u: --username
+    e: --email
 - name: socid-extractor
   display_name: Socid Extractor
   description: 'The extraction engine behind Maigret: turn any profile URL into a
@@ -1066,6 +1141,9 @@ tools:
   accepts:
   - url
   - username
+  input_types:
+    url: --url
+    u: --username
 - name: dnsgen
   display_name: Dnsgen
   description: DNSGen is a powerful and flexible DNS name permutation tool designed
@@ -1098,6 +1176,8 @@ tools:
     python: 3.12.14
   accepts:
   - domain
+  input_types:
+    d: --domain
 - name: sitedorks
   display_name: Sitedorks
   description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term
@@ -1132,6 +1212,9 @@ tools:
   accepts:
   - domain
   - url
+  input_types:
+    d: --domain
+    url: --url
 - name: linkook
   display_name: Linkook
   description: An OSINT tool for discovering linked social accounts and associated
@@ -1167,6 +1250,9 @@ tools:
   accepts:
   - username
   - email
+  input_types:
+    u: --username
+    e: --email
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
   description: Repositrio criado com intuito de reunir expresses regulares dentro
@@ -1202,6 +1288,8 @@ tools:
   accepts:
   - domain
   - name
+  input_types:
+    d: --domain
 - name: finalrecon
   display_name: Finalrecon
   description: All In One Web Recon.
@@ -1240,6 +1328,8 @@ tools:
   accepts:
   - domain
   - ip
+  input_types:
+    d: --domain
 - name: fierce
   display_name: Fierce
   description: A DNS reconnaissance tool for locating non-contiguous IP space.
@@ -1274,6 +1364,8 @@ tools:
   accepts:
   - domain
   - ip
+  input_types:
+    d: --domain
 - name: pywerview
   display_name: Pywerview
   description: A (partial) Python rewriting of PowerSploit's PowerView.
@@ -1310,6 +1402,9 @@ tools:
   accepts:
   - domain
   - username
+  input_types:
+    d: --domain
+    u: --username
 - name: ctfr
   display_name: Ctfr
   description: Abusing Certificate Transparency logs for getting HTTPS websites subdomains.
@@ -1342,3 +1437,237 @@ tools:
     python: 3.12.14
   accepts:
   - domain
+  input_types:
+    d: --domain
+
+
+- name: blackbird
+  display_name: Blackbird
+  description: OSINT tool to search for accounts by username and email across social networks.
+  repo: p1ngul1n0/blackbird
+  license: GPL-3.0
+  stars: 8628
+  tier: community
+  install:
+    method: git
+    url: https://github.com/p1ngul1n0/blackbird.git
+    requirements: requirements.txt
+  entrypoint:
+    script: blackbird.py
+  smoke_args:
+  - --help
+  capabilities:
+  - username-search
+  - email-search
+  - social-media
+  topics:
+  - username
+  - email
+  - social-media
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: main
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - username
+  - email
+  input_types:
+    u: --username
+    e: --email
+  example: examples/blackbird.txt
+
+- name: telegram-phone-number-checker
+  display_name: Telegram Phone Number Checker
+  description: Check if phone numbers are connected to Telegram accounts.
+  repo: bellingcat/telegram-phone-number-checker
+  license: MIT
+  stars: 1790
+  tier: community
+  install:
+    method: pip
+    package: telegram-phone-number-checker
+    version: 1.2.2
+  entrypoint:
+    command: telegram-phone-number-checker
+  smoke_args:
+  - --help
+  capabilities:
+  - phone-search
+  - telegram
+  - dual-use
+  topics:
+  - phone
+  - telegram
+  api_keys:
+    required: [TELEGRAM_API_ID, TELEGRAM_API_HASH]
+    optional: []
+  needs_config: true
+  verified:
+    date: '2026-09-24'
+    version: 1.2.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - phone
+  input_types:
+    p: --phone-numbers
+    u: --usernames
+  example: examples/telegram-phone-number-checker.txt
+
+- name: auto-archiver
+  display_name: Auto Archiver
+  description: Automatically archive web content from various sources.
+  repo: bellingcat/auto-archiver
+  license: MIT
+  stars: 1122
+  tier: community
+  install:
+    method: pip
+    package: auto-archiver
+    version: 1.2.9
+  entrypoint:
+    command: auto-archiver
+  smoke_args:
+  - --help
+  capabilities:
+  - archiving
+  - web-archiving
+  - dual-use
+  topics:
+  - archiving
+  - web
+  api_keys:
+    required: [GOOGLE_API_KEY, GOOGLE_CREDENTIALS]
+    optional: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]
+  needs_config: true
+  verified:
+    date: '2026-09-24'
+    version: 1.2.9
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - url
+  input_types:
+    url: --url
+  example: examples/auto-archiver.txt
+
+- name: edgar-tool
+  display_name: EDGAR Tool
+  description: Command line interface to search and retrieve corporate and financial data from the SEC EDGAR database.
+  repo: bellingcat/edgar
+  license: MIT
+  stars: 216
+  tier: community
+  install:
+    method: pip
+    package: edgar-tool
+    version: 2.1.2
+  entrypoint:
+    command: edgar
+  smoke_args:
+  - --help
+  capabilities:
+  - financial-data
+  - corporate-research
+  topics:
+  - sec
+  - edgar
+  - financial
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-24'
+    version: 2.1.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - name
+  - domain
+  input_types:
+    q: ""
+    d: ""
+  example: examples/edgar-tool.txt
+
+- name: instagram-location-search
+  display_name: Instagram Location Search
+  description: Find Instagram location IDs near specified coordinates.
+  repo: bellingcat/instagram-location-search
+  license: MIT
+  stars: 717
+  tier: community
+  install:
+    method: pip
+    package: instagram-location-search
+    version: 1.5.2
+  entrypoint:
+    command: instagram-location-search
+  smoke_args:
+  - --help
+  capabilities:
+  - instagram
+  - location-search
+  - social-media
+  topics:
+  - instagram
+  - location
+  - social-media
+  api_keys:
+    required: []
+    optional: [INSTAGRAM_SESSION_ID]
+  verified:
+    date: '2026-09-24'
+    version: 1.5.2
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - url
+  input_types:
+    lat: --lat
+    lng: --lng
+  example: examples/instagram-location-search.txt
+
+- name: telepathy
+  display_name: Telepathy
+  description: OSINT toolkit for investigating Telegram chats and accounts.
+  repo: telepathy/telepathy
+  license: MIT
+  stars: 0
+  tier: community
+  install:
+    method: pip
+    package: telepathy
+    version: 2.3.4
+  entrypoint:
+    command: telepathy
+  smoke_args:
+  - --help
+  capabilities:
+  - telegram
+  - chat-analysis
+  - dual-use
+  topics:
+  - telegram
+  - chat
+  - osint
+  api_keys:
+    required: [TELEGRAM_API_ID, TELEGRAM_API_HASH]
+    optional: []
+  needs_config: true
+  verified:
+    date: '2026-09-24'
+    version: 2.3.4
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - username
+  - phone
+  input_types:
+    u: --username
+    p: --phone
+  example: examples/telepathy.txt
+

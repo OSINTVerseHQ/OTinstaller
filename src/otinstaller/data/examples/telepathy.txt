@@ -1,0 +1,4 @@
+Telepathy example
+Telegram chat analysis
+Participants: 150
+Messages analyzed: 5000
