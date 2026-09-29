@@ -29,7 +29,7 @@ tools:
   accepts:
   - username
   input_types:
-    u: ""
+    u: ''
   example: examples/maigret.txt
 - name: ghunt
   display_name: Ghunt
@@ -105,8 +105,7 @@ tools:
   example: examples/theharvester.txt
 - name: spiderfoot
   display_name: Spiderfoot
-  description: SpiderFoot automates OSINT for threat intelligence and mapping your
-    attack surface.
+  description: SpiderFoot automates OSINT for threat intelligence and mapping your attack surface.
   repo: smicallef/spiderfoot
   license: MIT
   stars: 22469
@@ -155,8 +154,7 @@ tools:
   example: examples/spiderfoot.txt
 - name: instaloader
   display_name: Instaloader
-  description: Download pictures (or videos) along with their captions and other metadata
-    from Instagram.
+  description: Download pictures (or videos) along with their captions and other metadata from Instagram.
   repo: instaloader/instaloader
   license: MIT
   stars: 13427
@@ -224,13 +222,11 @@ tools:
   accepts:
   - username
   input_types:
-    u: ""
+    u: ''
   example: examples/sherlock.txt
 - name: holehe
   display_name: Holehe
-  description: holehe allows you to check if the mail is used on different sites like
-    twitter, instagram and will retrieve information on sites with the forgotten password
-    function.
+  description: holehe allows you to check if the mail is used on different sites like twitter, instagram and will retrieve information on sites with the forgotten password function.
   repo: megadose/holehe
   license: GPL-3.0
   stars: 14986
@@ -262,7 +258,7 @@ tools:
   accepts:
   - email
   input_types:
-    e: ""
+    e: ''
   example: examples/holehe.txt
 - name: bbot
   display_name: Bbot
@@ -309,8 +305,7 @@ tools:
     u: --username
 - name: dnstwist
   display_name: Dnstwist
-  description: Domain name permutation engine for detecting homograph phishing attacks,
-    typo squatting, and brand impersonation.
+  description: Domain name permutation engine for detecting homograph phishing attacks, typo squatting, and brand impersonation.
   repo: elceef/dnstwist
   license: Apache-2.0
   stars: 5741
@@ -337,6 +332,7 @@ tools:
     version: '20250130'
     os: Ubuntu 26.04 LTS
     python: 3.12.14
+  example: examples/dnstwist.txt
   accepts:
   - domain
   - ip
@@ -344,8 +340,7 @@ tools:
     d: --domain
 - name: h8mail
   display_name: H8Mail
-  description: Email OSINT & Password breach hunting tool, locally or using premium
-    services.
+  description: Email OSINT & Password breach hunting tool, locally or using premium services.
   repo: khast3x/h8mail
   license: NOASSERTION
   stars: 5309
@@ -373,14 +368,14 @@ tools:
     version: 2.5.6
     os: Ubuntu 26.04 LTS
     python: 3.12.14
+  example: examples/h8mail.txt
   accepts:
   - email
   input_types:
     e: --email
 - name: user-scanner
   display_name: User Scanner
-  description: (2-in-1) Email & Username OSINT suite featuring native MCP support
-    for deep data extraction just from a single Email/Username.
+  description: (2-in-1) Email & Username OSINT suite featuring native MCP support for deep data extraction just from a single Email/Username.
   repo: kaifcodec/user-scanner
   license: MIT
   stars: 4985
@@ -416,6 +411,7 @@ tools:
   input_types:
     u: --username
     e: --email
+  example: examples/user-scanner.txt
 - name: torbot
   display_name: Torbot
   description: Dark Web OSINT Tool.
@@ -447,6 +443,7 @@ tools:
     version: 4.3.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
+  example: examples/torbot.txt
   accepts:
   - url
   - domain
@@ -455,8 +452,7 @@ tools:
     d: --domain
 - name: toutatis
   display_name: Toutatis
-  description: Toutatis is a tool that allows you to extract information from instagrams
-    accounts such as e-mails, phone numbers and more.
+  description: Toutatis is a tool that allows you to extract information from instagrams accounts such as e-mails, phone numbers and more.
   repo: megadose/toutatis
   license: GPL-3.0
   stars: 4300
@@ -559,22 +555,22 @@ tools:
     version: 2.5.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
+  example: examples/aliens-eye.txt
   accepts:
   - username
   input_types:
     u: --username
 - name: paramspider
   display_name: Paramspider
-  description: Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further
-    probing.
+  description: Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further probing.
   repo: devanshbatham/ParamSpider
   license: MIT
   stars: 3174
   tier: community
   install:
-    method: pip
-    package: paramspider
-    version: unknown
+    method: git
+    url: https://github.com/devanshbatham/ParamSpider.git
+    as_package: true
   entrypoint:
     command: paramspider
   smoke_args:
@@ -593,7 +589,7 @@ tools:
     optional: []
   verified:
     date: '2026-09-24'
-    version: unknown
+    version: 0.1.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
@@ -684,7 +680,7 @@ tools:
   install:
     method: pip
     package: cloud-enum
-    version: unknown
+    version: 0.1.0
   entrypoint:
     command: cloud_enum
   smoke_args:
@@ -704,7 +700,7 @@ tools:
     optional: []
   verified:
     date: '2026-09-24'
-    version: unknown
+    version: 0.1.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
@@ -714,8 +710,7 @@ tools:
     d: --domain
 - name: ignorant
   display_name: Ignorant
-  description: ignorant allows you to check if a phone number is used on different
-    sites like snapchat, instagram.
+  description: ignorant allows you to check if a phone number is used on different sites like snapchat, instagram.
   repo: megadose/ignorant
   license: GPL-3.0
   stars: 2075
@@ -749,8 +744,7 @@ tools:
     p: --phone
 - name: socialscan
   display_name: Socialscan
-  description: Python library for accurately querying username and email usage on
-    online platforms.
+  description: Python library for accurately querying username and email usage on online platforms.
   repo: iojw/socialscan
   license: MPL-2.0
   stars: 1845
@@ -781,7 +775,7 @@ tools:
   - username
   - email
   input_types:
-    q: ""
+    q: ''
 - name: fsociety
   display_name: Fsociety
   description: A Modular Penetration Testing Framework.
@@ -907,8 +901,7 @@ tools:
     d: --domain
 - name: crosslinked
   display_name: Crosslinked
-  description: LinkedIn enumeration tool to extract valid employee names from an organization
-    through search engine scraping.
+  description: LinkedIn enumeration tool to extract valid employee names from an organization through search engine scraping.
   repo: m8sec/CrossLinked
   license: GPL-3.0
   stars: 1593
@@ -987,8 +980,7 @@ tools:
     p: --phone
 - name: instagram-monitor
   display_name: Instagram Monitor
-  description: Track Instagram users' activities, profile changes and capture content
-    with beautiful dashboards and instant notifications.
+  description: Track Instagram users' activities, profile changes and capture content with beautiful dashboards and instant notifications.
   repo: misiektoja/instagram_monitor
   license: GPL-3.0
   stars: 1512
@@ -1023,8 +1015,7 @@ tools:
     u: --username
 - name: mailaccess
   display_name: Mailaccess
-  description: Free email OSINT tool, 2500+ platforms, identity clustering, breach
-    detection.
+  description: Free email OSINT tool, 2500+ platforms, identity clustering, breach detection.
   repo: KatrielMoses/MailAccess
   license: unknown
   stars: 1449
@@ -1107,8 +1098,7 @@ tools:
     e: --email
 - name: socid-extractor
   display_name: Socid Extractor
-  description: 'The extraction engine behind Maigret: turn any profile URL into a
-    structured OSINT record across 150+ sites.'
+  description: 'The extraction engine behind Maigret: turn any profile URL into a structured OSINT record across 150+ sites.'
   repo: soxoj/socid-extractor
   license: MIT
   stars: 1095
@@ -1146,8 +1136,7 @@ tools:
     u: --username
 - name: dnsgen
   display_name: Dnsgen
-  description: DNSGen is a powerful and flexible DNS name permutation tool designed
-    for security researchers and penetration testers.
+  description: DNSGen is a powerful and flexible DNS name permutation tool designed for security researchers and penetration testers.
   repo: AlephNullSK/dnsgen
   license: MIT
   stars: 1081
@@ -1180,8 +1169,7 @@ tools:
     d: --domain
 - name: sitedorks
   display_name: Sitedorks
-  description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term
-    (dork) with a default set of websites, bug bounty programs or custom collection.
+  description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term (dork) with a default set of websites, bug bounty programs or custom collection.
   repo: Zarcolio/sitedorks
   license: GPL-3.0
   stars: 1056
@@ -1217,8 +1205,7 @@ tools:
     url: --url
 - name: linkook
   display_name: Linkook
-  description: An OSINT tool for discovering linked social accounts and associated
-    emails across multiple platforms using a single username.
+  description: An OSINT tool for discovering linked social accounts and associated emails across multiple platforms using a single username.
   repo: JackJuly/linkook
   license: MIT
   stars: 1016
@@ -1255,8 +1242,7 @@ tools:
     e: --email
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
-  description: Repositrio criado com intuito de reunir expresses regulares dentro
-    do contexto Brasil.
+  description: Repositrio criado com intuito de reunir expresses regulares dentro do contexto Brasil.
   repo: osintbrazuca/osint-brazuca-regex
   license: MIT
   stars: 1012
@@ -1439,8 +1425,6 @@ tools:
   - domain
   input_types:
     d: --domain
-
-
 - name: blackbird
   display_name: Blackbird
   description: OSINT tool to search for accounts by username and email across social networks.
@@ -1479,7 +1463,6 @@ tools:
     u: --username
     e: --email
   example: examples/blackbird.txt
-
 - name: telegram-phone-number-checker
   display_name: Telegram Phone Number Checker
   description: Check if phone numbers are connected to Telegram accounts.
@@ -1503,7 +1486,9 @@ tools:
   - phone
   - telegram
   api_keys:
-    required: [TELEGRAM_API_ID, TELEGRAM_API_HASH]
+    required:
+    - TELEGRAM_API_ID
+    - TELEGRAM_API_HASH
     optional: []
   needs_config: true
   verified:
@@ -1517,7 +1502,6 @@ tools:
     p: --phone-numbers
     u: --usernames
   example: examples/telegram-phone-number-checker.txt
-
 - name: auto-archiver
   display_name: Auto Archiver
   description: Automatically archive web content from various sources. Requires Python <3.13 (no wheels for 3.13+; dependency pdqhash needs C++ compiler).
@@ -1541,8 +1525,12 @@ tools:
   - archiving
   - web
   api_keys:
-    required: [GOOGLE_API_KEY, GOOGLE_CREDENTIALS]
-    optional: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]
+    required:
+    - GOOGLE_API_KEY
+    - GOOGLE_CREDENTIALS
+    optional:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
   needs_config: true
   verified:
     date: '2026-09-24'
@@ -1554,7 +1542,6 @@ tools:
   input_types:
     url: --url
   example: examples/auto-archiver.txt
-
 - name: edgar-tool
   display_name: EDGAR Tool
   description: Command line interface to search and retrieve corporate and financial data from the SEC EDGAR database.
@@ -1589,10 +1576,9 @@ tools:
   - name
   - domain
   input_types:
-    q: "text-search"
-    d: ""
+    q: text-search
+    d: ''
   example: examples/edgar-tool.txt
-
 - name: instagram-location-search
   display_name: Instagram Location Search
   description: Find Instagram location IDs near specified coordinates.
@@ -1618,7 +1604,8 @@ tools:
   - social-media
   api_keys:
     required: []
-    optional: [INSTAGRAM_SESSION_ID]
+    optional:
+    - INSTAGRAM_SESSION_ID
   verified:
     date: '2026-09-24'
     version: 1.5.2
@@ -1630,7 +1617,6 @@ tools:
     lat: --lat
     lng: --lng
   example: examples/instagram-location-search.txt
-
 - name: telepathy
   display_name: Telepathy
   description: OSINT toolkit for investigating Telegram chats and accounts. Requires Python <3.13 (dependency googletrans/httpx uses removed cgi module).
@@ -1655,7 +1641,9 @@ tools:
   - chat
   - osint
   api_keys:
-    required: [TELEGRAM_API_ID, TELEGRAM_API_HASH]
+    required:
+    - TELEGRAM_API_ID
+    - TELEGRAM_API_HASH
     optional: []
   needs_config: true
   verified:
@@ -1670,7 +1658,6 @@ tools:
     u: --username
     p: --phone
   example: examples/telepathy.txt
-
 - name: neutrosint
   display_name: NeutrOSINT
   description: Check if an email address or username exists on ProtonMail.
@@ -1706,7 +1693,6 @@ tools:
     e: --email
     u: --email
   example: examples/neutrosint.txt
-
 - name: zen
   display_name: Zen
   description: Find email addresses of GitHub users, repositories and organizations.
@@ -1738,10 +1724,9 @@ tools:
   - username
   - url
   input_types:
-    u: ""
-    url: ""
+    u: ''
+    url: ''
   example: examples/zen.txt
-
 - name: thebigbrother
   display_name: The Big Brother
   description: Find usernames across social networks.
@@ -1772,6 +1757,5 @@ tools:
   accepts:
   - username
   input_types:
-    u: ""
+    u: ''
   example: examples/thebigbrother.txt
-
