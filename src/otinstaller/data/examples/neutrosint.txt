@@ -1,0 +1,17 @@
+example output for neutrosint:
+------------------------------------------------------------
+username and password not specified, using light mode...
+
+(NeutrOSINT banner omitted)
+
+[-] Proton email does not exist: doesnotexist9k2x@example.com
+
+[+] Valid email: exampleuser@proton.me - PGP key creation date:
+    2021-03-14T09:41:51+00:00 - Fingerprint: 1A2B3C4D5E6F7890ABCDEF1234567890ABCDEF12
+    - Algorithm: rsa3072
+
+[?] Not a protonmail address, can't determine validity: someone@gmail.com
+
+[-] Error when requesting the API
+------------------------------------------------------------
+(Example trimmed - real output starts with an ASCII banner)
