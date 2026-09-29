@@ -17,8 +17,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "typer",
-    "rich",
+    "typer==0.27.2",
+    "click>=8.0.0",
+    "rich>=13.8.0",
     "pyyaml",
 ]
 
@@ -34,6 +35,7 @@ pipeline = [
 
 [project.scripts]
 otinstaller = "otinstaller.cli:app"
+ot = "otinstaller.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/otinstaller"]

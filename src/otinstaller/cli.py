@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Annotated
 
+import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -51,7 +52,73 @@ from otinstaller.results import write_meta
 from otinstaller.runner import run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 
+
+class ToolAwareGroup(typer.core.TyperGroup):
+    """Custom TyperGroup that falls back to showing tool info for unknown commands."""
+
+    def get_command(self, ctx: typer.Context, cmd_name: str) -> click.Command | None:
+        # First try to get the command normally
+        command = super().get_command(ctx, cmd_name)
+        if command is not None:
+            return command
+
+        # If not found, check if it's a tool name
+        # Known subcommands that should not be treated as tool names
+        subcommands = {
+            "list",
+            "search",
+            "info",
+            "install",
+            "remove",
+            "run",
+            "update",
+            "extract",
+            "diff",
+            "auto",
+            "example",
+            "init",
+            "keys",
+            "resume",
+            "doctor",
+            "help",
+        }
+        if cmd_name in subcommands:
+            return None
+
+        # Check if it's a tool name
+        try:
+            verbose = False
+            if ctx.params and ctx.params.get("verbose"):
+                verbose = True
+
+            from otinstaller.cli import _load_registry, find_tool
+
+            tools = _load_registry(verbose)
+            tool = find_tool(tools, cmd_name)
+            if tool:
+                # Return a command that shows tool info
+                from otinstaller.cli import _show_tool_info
+
+                @click.command(name=cmd_name, hidden=True)
+                @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+                @click.option("--verbose", is_flag=True, help="Verbose output")
+                @click.option("--no-color", is_flag=True, help="Disable colored output")
+                def _tool_info_cmd(
+                    json_output: bool = False, verbose: bool = False, no_color: bool = False
+                ):
+                    _show_tool_info(
+                        tool, json_output=json_output, no_color=no_color, verbose=verbose
+                    )
+
+                return _tool_info_cmd
+        except Exception:
+            pass
+
+        return None
+
+
 app = typer.Typer(
+    cls=ToolAwareGroup,
     add_completion=False,
     no_args_is_help=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
@@ -123,6 +190,141 @@ def _print_table(console: Console, tools: list, json_output: bool) -> None:
     typer.echo(f"{count} tool{'s' if count != 1 else ''}")
 
 
+_INPUT_TYPE_PREFIXES = ("u", "e", "p", "d", "url", "q", "geo", "tg")
+
+
+def _parse_typed_inputs(args: list[str]) -> tuple[dict[str, str], list[str]]:
+    """Parse typed inputs from args.
+
+    Returns a tuple of (typed_inputs_dict, remaining_args).
+    typed_inputs_dict maps prefix -> value (e.g., {"u": "johndoe", "e": "john@example.com"}).
+    """
+    typed_inputs = {}
+    remaining = []
+    for arg in args:
+        if ":" in arg:
+            prefix, _, value = arg.partition(":")
+            if prefix in _INPUT_TYPE_PREFIXES:
+                if not value:
+                    raise ValueError(f"empty value for input type '{prefix}'")
+                if prefix in typed_inputs:
+                    raise ValueError(f"duplicate input type '{prefix}'")
+                typed_inputs[prefix] = value
+                continue
+        remaining.append(arg)
+    return typed_inputs, remaining
+
+
+def _build_tool_args(tool, typed_inputs: dict[str, str]) -> list[str]:
+    """Build tool-specific arguments from typed inputs.
+
+    Returns a list of arguments to pass to the tool.
+    """
+    args = []
+    for prefix, value in typed_inputs.items():
+        if prefix in tool.input_types:
+            flag = tool.input_types[prefix]
+            if flag:
+                args.extend([flag, value])
+            else:
+                # Empty flag means positional argument
+                args.append(value)
+        else:
+            # Tool doesn't support this input type
+            pass
+    return args
+
+
+def _show_tool_info(
+    tool, json_output: bool = False, no_color: bool = False, verbose: bool = False
+) -> None:
+    """Show detailed tool information (same as info command)."""
+    console = _make_console(no_color)
+
+    if json_output:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps(asdict(tool), default=str))
+        return
+
+    lines = []
+    lines.append(f"{tool.display_name} ({tool.name})")
+    lines.append(tool.description)
+    lines.append(f"Tier: {tool.tier}")
+
+    if tool.repo:
+        lines.append(f"Repo: {tool.repo}")
+    if tool.license:
+        lines.append(f"License: {tool.license}")
+
+    if tool.install.method == "pip":
+        pkg = tool.install.package or ""
+        ver = f" ({tool.install.version})" if tool.install.version else ""
+        lines.append(f"Install: pip {pkg}{ver}")
+    else:
+        lines.append(f"Install: git {tool.install.url}")
+        if tool.install.ref:
+            lines.append(f"Ref: {tool.install.ref}")
+        if tool.install.requirements:
+            lines.append(f"Requirements: {tool.install.requirements}")
+        if tool.install.as_package:
+            lines.append("As package: yes")
+
+    if tool.entrypoint.command:
+        lines.append(f"Entrypoint: {tool.entrypoint.command}")
+    elif tool.entrypoint.script:
+        lines.append(f"Entrypoint: {tool.entrypoint.script}")
+
+    if tool.capabilities:
+        lines.append(f"Capabilities: {', '.join(tool.capabilities)}")
+
+    if tool.input_types:
+        input_types_str = ", ".join(f"{k}:{v}" for k, v in sorted(tool.input_types.items()))
+        lines.append(f"Input types: {input_types_str}")
+    else:
+        lines.append("Input types: none")
+
+    api_keys = []
+    if tool.api_keys.required:
+        api_keys.append(f"required: {', '.join(tool.api_keys.required)}")
+    if tool.api_keys.optional:
+        api_keys.append(f"optional: {', '.join(tool.api_keys.optional)}")
+    if api_keys:
+        lines.append(f"API keys: {'; '.join(api_keys)}")
+    else:
+        lines.append("API keys: none")
+
+    # Check installed version
+    installed = get_installed(tool.name)
+    if installed:
+        lines.append(f"Installed version: {installed.version}")
+    else:
+        lines.append("Not installed")
+
+    if tool.verified:
+        lines.append(
+            f"Verified: {tool.verified.date} with version {tool.verified.version} "
+            f"on {tool.verified.os}, python {tool.verified.python}"
+        )
+    else:
+        lines.append("Not verified yet")
+
+    if "dual-use" in tool.capabilities:
+        lines.append("Dual-use tool. See the responsible use notice in the README.")
+
+    # Show curated usage or fall back to tool's --help
+    if tool.entrypoint.command:
+        lines.append(f"Usage: {tool.entrypoint.command} [OPTIONS]")
+    elif tool.entrypoint.script:
+        lines.append(f"Usage: python {tool.entrypoint.script} [OPTIONS]")
+
+    if tool.example:
+        lines.append(f"Example: {tool.example}")
+
+    for line in lines:
+        console.print(line)
+
+
 @app.command(name="list")
 def list_tools(
     installed: Annotated[
@@ -170,7 +372,7 @@ def list_tools(
     _print_table(console, tools, json_output)
 
 
-@app.command()
+@app.command(name="search")
 def search(
     query: Annotated[list[str], typer.Argument(help="Search query words")],
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
@@ -213,7 +415,7 @@ def search(
     typer.echo(f"{count} tool{'s' if count != 1 else ''}")
 
 
-@app.command()
+@app.command(name="info")
 def info(
     tool_name: Annotated[str, typer.Argument(help="Tool name")],
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
@@ -289,6 +491,12 @@ def info(
     else:
         lines.append("Not verified yet")
 
+    if tool.input_types:
+        input_types_str = ", ".join(f"{k}:{v}" for k, v in sorted(tool.input_types.items()))
+        lines.append(f"Input types: {input_types_str}")
+    else:
+        lines.append("Input types: none")
+
     if "dual-use" in tool.capabilities:
         lines.append("Dual-use tool. See the responsible use notice in the README.")
 
@@ -296,13 +504,14 @@ def info(
         console.print(line)
 
 
-@app.command()
+@app.command(name="install")
 def install(
     names: Annotated[list[str], typer.Argument(help="Tool names to install")],
     force: Annotated[bool, typer.Option("--force", help="Reinstall if already installed")] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Install tools by name."""
     if sys.platform != "linux":
@@ -329,8 +538,13 @@ def install(
             tools.append(tool)
 
     if errors:
-        for err in errors:
-            typer.echo(err, err=True)
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"errors": errors}))
+        else:
+            for err in errors:
+                typer.echo(err, err=True)
         raise typer.Exit(code=1)
 
     # Print what will be installed
@@ -364,42 +578,76 @@ def install(
     skipped_count = 0
     failed_count = 0
     console = _make_console(no_color)
+    results = []
 
     for tool in tools:
         try:
             with console.status(f"Installing {tool.name}..."):
                 result = install_tool(tool, force=force, stream=verbose)
-            typer.echo(f"installed {result.name} {result.version}")
+            if json_output:
+                results.append(
+                    {"tool": tool.name, "status": "installed", "version": result.version}
+                )
+            else:
+                typer.echo(f"installed {result.name} {result.version}")
             installed_count += 1
         except AlreadyInstalled:
-            typer.echo(f"{tool.name} is already installed (use --force to reinstall)")
+            if json_output:
+                results.append(
+                    {"tool": tool.name, "status": "skipped", "reason": "already installed"}
+                )
+            else:
+                typer.echo(f"{tool.name} is already installed (use --force to reinstall)")
             skipped_count += 1
         except InstallError as e:
-            typer.echo(f"error: {tool.name}: {e}")
+            if json_output:
+                results.append({"tool": tool.name, "status": "failed", "error": str(e)})
+            else:
+                typer.echo(f"error: {tool.name}: {e}")
             log = get_logs_dir() / f"install-{tool.name}.log"
             if log.exists():
-                typer.echo(f"log: {log}")
+                if not json_output:
+                    typer.echo(f"log: {log}")
             failed_count += 1
         except Exception as e:
-            typer.echo(f"error: {tool.name}: {e}")
+            if json_output:
+                results.append({"tool": tool.name, "status": "failed", "error": str(e)})
+            else:
+                typer.echo(f"error: {tool.name}: {e}")
             log = get_logs_dir() / f"install-{tool.name}.log"
             if log.exists():
-                typer.echo(f"log: {log}")
+                if not json_output:
+                    typer.echo(f"log: {log}")
             failed_count += 1
 
-    typer.echo(f"{installed_count} installed, {skipped_count} skipped, {failed_count} failed")
+    if json_output:
+        import json
+
+        typer.echo(
+            json.dumps(
+                {
+                    "installed": installed_count,
+                    "skipped": skipped_count,
+                    "failed": failed_count,
+                    "results": results,
+                }
+            )
+        )
+    else:
+        typer.echo(f"{installed_count} installed, {skipped_count} skipped, {failed_count} failed")
 
     if failed_count > 0:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(name="remove")
 def remove(
     names: Annotated[list[str] | None, typer.Argument(help="Tool names to remove")] = None,
     all_tools: Annotated[bool, typer.Option("--all", help="Remove all installed tools")] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Remove installed tools."""
     if sys.platform != "linux":
@@ -420,7 +668,12 @@ def remove(
     if all_tools:
         installed = list_installed()
         if not installed:
-            typer.echo("nothing to remove")
+            if json_output:
+                import json
+
+                typer.echo(json.dumps({"removed": 0, "failed": 0, "results": []}))
+            else:
+                typer.echo("nothing to remove")
             raise typer.Exit(code=0)
         tools_to_remove = [t.name for t in installed]
     else:
@@ -439,24 +692,43 @@ def remove(
     # Remove
     removed_count = 0
     failed_count = 0
+    results = []
 
     for name in tools_to_remove:
         try:
             if remove_tool(name):
-                typer.echo(f"removed {name}")
+                if json_output:
+                    results.append({"tool": name, "status": "removed"})
+                else:
+                    typer.echo(f"removed {name}")
                 removed_count += 1
             else:
-                typer.echo(f"error: {name} is not installed")
+                if json_output:
+                    results.append({"tool": name, "status": "failed", "error": "not installed"})
+                else:
+                    typer.echo(f"error: {name} is not installed")
                 failed_count += 1
         except Exception as e:
-            typer.echo(f"error: {name}: {e}")
+            if json_output:
+                results.append({"tool": name, "status": "failed", "error": str(e)})
+            else:
+                typer.echo(f"error: {name}: {e}")
             failed_count += 1
 
-    if failed_count > 0:
-        raise typer.Exit(code=1)
+    if json_output:
+        import json
+
+        typer.echo(
+            json.dumps({"removed": removed_count, "failed": failed_count, "results": results})
+        )
+    else:
+        if failed_count > 0:
+            raise typer.Exit(code=1)
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(
+    name="run", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
 def run(
     ctx: typer.Context,
     case: Annotated[
@@ -472,12 +744,26 @@ def run(
     parallel: Annotated[
         int, typer.Option("--parallel", "-p", help="Max concurrent tools (default: 4)")
     ] = 4,
+    all_tools: Annotated[
+        bool, typer.Option("--all", "-a", help="Run all installed tools supporting the input types")
+    ] = False,
+    include_credentialed: Annotated[
+        bool, typer.Option("--include-credentialed", help="Include tools that require credentials")
+    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
 ):
     """Run one or more tools with arguments passed through after --.
 
     If a target argument after -- happens to match a registered tool name,
     it will be interpreted as an additional tool to run. Use --target to
     disambiguate in that case.
+
+    Typed inputs:
+      u:username  e:email  p:phone  d:domain  url:URL  q:query
+      geo:coordinates  tg:telegram-channel
+
+    With --all, runs every installed tool supporting the given input types.
+    Only u, e, p, d, and url are valid with --all.
     """
     raw_args = list(ctx.args)
     # Click strips the -- separator when allow_extra_args=True, so it won't be in ctx.args.
@@ -511,24 +797,71 @@ def run(
 
     tools_registry = _load_registry(False)
 
-    # Resolve all tools
-    tools = []
-    errors = []
-    for name in tool_names:
-        t = find_tool(tools_registry, name)
-        if not t:
-            suggestions = suggest_names(tools_registry, name)
-            msg = f"error: unknown tool '{name}'"
-            if suggestions:
-                msg += f"\ndid you mean: {', '.join(suggestions)}?"
-            errors.append(msg)
-        else:
+    # Parse typed inputs from extra_args
+    try:
+        typed_inputs, remaining_args = _parse_typed_inputs(extra_args)
+    except ValueError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(code=2) from e
+
+    # Handle --all mode
+    if all_tools:
+        # Validate that typed inputs are only from allowed set for --all
+        allowed_all_prefixes = {"u", "e", "p", "d", "url"}
+        for prefix in typed_inputs:
+            if prefix not in allowed_all_prefixes:
+                typer.echo(
+                    f"error: input type '{prefix}' not allowed with --all; "
+                    f"allowed: {', '.join(sorted(allowed_all_prefixes))}",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+
+        # Find all installed tools that support at least one of the typed inputs
+        installed_tools_list = list_installed()
+        installed_names = {t.name for t in installed_tools_list}
+
+        tools = []
+        for name in installed_names:
+            t = find_tool(tools_registry, name)
+            if not t:
+                continue
+            # Check if tool supports any of the typed inputs
+            supports_any = any(prefix in t.input_types for prefix in typed_inputs)
+            if not supports_any:
+                continue
+            # Check credentials requirement
+            if t.api_keys.required and not include_credentialed:
+                continue
             tools.append((name, t))
 
-    if errors:
-        for err in errors:
-            typer.echo(err, err=True)
-        raise typer.Exit(code=1)
+        if not tools:
+            typer.echo("no installed tools support the given input types", err=True)
+            raise typer.Exit(code=1)
+
+    else:
+        # Resolve explicit tool names
+        tools = []
+        errors = []
+        for name in tool_names:
+            t = find_tool(tools_registry, name)
+            if not t:
+                suggestions = suggest_names(tools_registry, name)
+                msg = f"error: unknown tool '{name}'"
+                if suggestions:
+                    msg += f"\ndid you mean: {', '.join(suggestions)}?"
+                errors.append(msg)
+            else:
+                tools.append((name, t))
+
+        if errors:
+            for err in errors:
+                typer.echo(err, err=True)
+            raise typer.Exit(code=1)
+
+        if not tools:
+            typer.echo("error: no tools specified", err=True)
+            raise typer.Exit(code=1)
 
     # Check if all tools are installed
 
@@ -548,8 +881,20 @@ def run(
         typer.echo("error: --parallel must be at least 1", err=True)
         raise typer.Exit(code=1)
 
+    # Check that each typed input is supported by at least one tool
+    for prefix in typed_inputs:
+        supported = any(prefix in t.input_types for _, t in tools)
+        if not supported:
+            typer.echo(f"error: no selected tool supports input type '{prefix}'", err=True)
+            raise typer.Exit(code=2)
+
     # Determine target (same for all tools)
-    run_target = target if target is not None else (extra_args[0] if extra_args else "unspecified")
+    if target is not None:
+        run_target = target
+    elif remaining_args:
+        run_target = remaining_args[0]
+    else:
+        run_target = "unspecified"
 
     # Prepare roots dict
     roots = {name: get_tools_dir() / name for name, _t in tools}
@@ -560,6 +905,10 @@ def run(
         installed = installed_tools[name]
         root = roots[name]
 
+        # Build tool-specific arguments from typed inputs
+        tool_extra_args = _build_tool_args(t, typed_inputs)
+        tool_extra_args.extend(remaining_args)
+
         console = _make_console(no_color)
         use_spinner = not no_color and sys.stdout.isatty()
 
@@ -569,7 +918,7 @@ def run(
                     meta = run_tool(
                         t,
                         root,
-                        extra_args,
+                        tool_extra_args,
                         target=run_target,
                         case=case,
                         env_overrides=None,
@@ -580,7 +929,7 @@ def run(
                 meta = run_tool(
                     t,
                     root,
-                    extra_args,
+                    tool_extra_args,
                     target=run_target,
                     case=case,
                     env_overrides=None,
@@ -592,9 +941,24 @@ def run(
             meta_path = results_dir / Path(meta.output_path).with_suffix(".meta.json")
             write_meta(meta, meta_path)
 
-            typer.echo(f"tool exited {meta.exit_code}")
-            typer.echo(f"saved to {meta.output_path}")
-            typer.echo(f"sha256  {meta.sha256}")
+            if json_output:
+                import json
+
+                typer.echo(
+                    json.dumps(
+                        {
+                            "tool": name,
+                            "status": "ok" if meta.exit_code == 0 else "failed",
+                            "exit_code": meta.exit_code,
+                            "output_path": meta.output_path,
+                            "sha256": meta.sha256,
+                        }
+                    )
+                )
+            else:
+                typer.echo(f"tool exited {meta.exit_code}")
+                typer.echo(f"saved to {meta.output_path}")
+                typer.echo(f"sha256  {meta.sha256}")
 
             if meta.exit_code != 0:
                 raise typer.Exit(code=meta.exit_code)
@@ -611,12 +975,17 @@ def run(
     # Multiple tools: use run_tools_parallel
     else:
         tool_list = [t for _name, t in tools]
+        # Build per-tool extra args
+        tool_extra_args_dict = {}
+        for _name, t in tools:
+            tool_extra_args_dict[t.name] = _build_tool_args(t, typed_inputs) + remaining_args
+
         try:
             results = asyncio.run(
                 run_tools_parallel(
                     tool_list,
                     roots,
-                    extra_args,
+                    tool_extra_args_dict,
                     target=run_target,
                     case=case,
                     max_parallel=parallel,
@@ -630,6 +999,7 @@ def run(
         # Print results as they complete (results are in input order)
         ok_count = 0
         failed_count = 0
+        summary = []
         for meta in results:
             meta.tool_version = installed_tools[meta.tool].version
             results_dir = get_results_dir()
@@ -637,105 +1007,90 @@ def run(
             write_meta(meta, meta_path)
 
             if meta.exit_code == 0:
-                typer.echo(f"{meta.tool} done (exit 0)")
+                status = "ok"
                 ok_count += 1
             else:
-                typer.echo(f"{meta.tool} failed (exit {meta.exit_code})")
+                status = "failed"
                 failed_count += 1
 
-        typer.echo(f"{ok_count} ok, {failed_count} failed")
+            if json_output:
+                summary.append(
+                    {
+                        "tool": meta.tool,
+                        "status": status,
+                        "exit_code": meta.exit_code,
+                        "output_path": meta.output_path,
+                        "sha256": meta.sha256,
+                    }
+                )
+            else:
+                typer.echo(f"{meta.tool} {status} (exit {meta.exit_code})")
+
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"results": summary, "ok": ok_count, "failed": failed_count}))
+        else:
+            typer.echo(f"{ok_count} ok, {failed_count} failed")
 
         if failed_count > 0:
             raise typer.Exit(code=1)
 
 
-@app.command()
-def update(
-    names: Annotated[list[str] | None, typer.Argument(help="Tool names to update")] = None,
-    all_tools: Annotated[bool, typer.Option("--all", help="Update all installed tools")] = False,
-    check_only: Annotated[
-        bool, typer.Option("--check-only", help="Only check for updates, do not install")
-    ] = False,
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
-    json_output: Annotated[
-        bool, typer.Option("--json", help="Output as JSON (only with --check-only)")
-    ] = False,
-):
-    """Update installed tools to their latest versions."""
-    if sys.platform != "linux":
-        typer.echo("error: otinstaller currently supports Linux only", err=True)
-        raise typer.Exit(code=1)
+def _check_updates(
+    tools_to_check: list[str],
+    tools_registry,
+    json_output: bool = False,
+) -> tuple[int, int, int, int, list[dict], list[str]]:
+    """Check for updates for the given tools.
 
-    if names is None:
-        names = []
-
-    if names and all_tools:
-        typer.echo("error: cannot use both tool names and --all", err=True)
-        raise typer.Exit(code=1)
-
-    if not names and not all_tools:
-        typer.echo("error: specify tool names or --all", err=True)
-        raise typer.Exit(code=1)
-
-    from otinstaller.installer import AlreadyInstalled, InstallError, install_tool
+    Returns (updated_count, up_to_date_count, pinned_count,
+    failed_count, check_results, detail_lines).
+    For check-only, updated_count is always 0.
+    """
     from otinstaller.installer.core import (
         get_latest_git_ref,
         get_latest_pip_version,
         versions_differ,
     )
-    from otinstaller.registry import default_registry_path, find_tool, load_registry
-    from otinstaller.state import list_installed
-
-    # Load registry
-    tools_registry = load_registry(default_registry_path())
-
-    # Determine which tools to check
-    if all_tools:
-        installed_list = list_installed()
-        if not installed_list:
-            typer.echo("nothing installed to update")
-            raise typer.Exit(code=0)
-        tools_to_check = [t.name for t in installed_list]
-    else:
-        tools_to_check = names
+    from otinstaller.state import get_installed
 
     updated_count = 0
     up_to_date_count = 0
     pinned_count = 0
     failed_count = 0
     check_results = []
+    detail_lines = []
 
     for name in tools_to_check:
         installed = get_installed(name)
         if not installed:
-            typer.echo(f"error: {name} is not installed")
+            check_results.append(
+                {
+                    "tool": name,
+                    "current": None,
+                    "latest": None,
+                    "outdated": False,
+                    "error": "not installed",
+                }
+            )
+            detail_lines.append(f"error: {name}: not installed")
             failed_count += 1
-            if check_only and json_output:
-                check_results.append(
-                    {
-                        "tool": name,
-                        "current": None,
-                        "latest": None,
-                        "outdated": False,
-                        "error": "not installed",
-                    }
-                )
             continue
 
         tool = find_tool(tools_registry, name)
         if not tool:
-            typer.echo(f"error: {name} not found in registry")
+            check_results.append(
+                {
+                    "tool": name,
+                    "current": installed.version,
+                    "latest": None,
+                    "outdated": False,
+                    "error": "not in registry",
+                }
+            )
+            detail_lines.append(f"error: {name}: not in registry")
             failed_count += 1
-            if check_only and json_output:
-                check_results.append(
-                    {
-                        "tool": name,
-                        "current": installed.version,
-                        "latest": None,
-                        "outdated": False,
-                        "error": "not in registry",
-                    }
-                )
             continue
 
         current_version = installed.version
@@ -756,22 +1111,16 @@ def update(
             if tool.install.ref:
                 # Pinned tool - no automatic update check
                 pinned_count += 1
-                msg = f"{name}: pinned at {tool.install.ref}, skip"
-                if check_only:
-                    if json_output:
-                        check_results.append(
-                            {
-                                "tool": name,
-                                "current": current_version,
-                                "latest": current_version,
-                                "outdated": False,
-                                "pinned": True,
-                            }
-                        )
-                    else:
-                        typer.echo(msg)
-                else:
-                    typer.echo(msg)
+                detail_lines.append(f"{name}: pinned at {current_version}, skip")
+                check_results.append(
+                    {
+                        "tool": name,
+                        "current": current_version,
+                        "latest": current_version,
+                        "outdated": False,
+                        "pinned": True,
+                    }
+                )
                 continue
             else:
                 latest_version = get_latest_git_ref(tool.install.url or "")
@@ -779,96 +1128,253 @@ def update(
                     error = "could not check for updates"
 
         if error:
-            if not json_output:
-                typer.echo(f"error: {name}: {error}")
             failed_count += 1
-            if check_only and json_output:
-                check_results.append(
-                    {
-                        "tool": name,
-                        "current": current_version,
-                        "latest": None,
-                        "outdated": False,
-                        "error": error,
-                    }
-                )
+            detail_lines.append(f"error: {name}: {error}")
+            check_results.append(
+                {
+                    "tool": name,
+                    "current": current_version,
+                    "latest": None,
+                    "outdated": False,
+                    "error": error,
+                }
+            )
             continue
 
         is_outdated = versions_differ(current_version, latest_version)
 
-        if check_only:
-            if json_output:
-                check_results.append(
-                    {
-                        "tool": name,
-                        "current": current_version,
-                        "latest": latest_version,
-                        "outdated": is_outdated,
-                    }
-                )
-            else:
-                if is_outdated:
-                    msg = f"{name}: {current_version} -> {latest_version} available"
-                    typer.echo(msg)
-                    up_to_date_count += 1  # Count as "available" for summary
-                else:
-                    typer.echo(f"{name} is already up to date")
-                    up_to_date_count += 1
+        check_results.append(
+            {
+                "tool": name,
+                "current": current_version,
+                "latest": latest_version,
+                "outdated": is_outdated,
+            }
+        )
+
+        if is_outdated:
+            up_to_date_count += 1  # Count as "available" for summary
+            detail_lines.append(f"{name}: {current_version} -> {latest_version} available")
         else:
-            if is_outdated:
-                # Confirm update
-                if not yes:
-                    if not sys.stdin.isatty():
-                        msg = f"error: confirmation needed for {name}, run with --yes"
-                        typer.echo(msg, err=True)
-                        failed_count += 1
-                        continue
-                    prompt = f"Update {name} from {current_version} to {latest_version}? [y/N]"
-                    answer = typer.prompt(prompt, default="n")
-                    if answer.lower() != "y":
-                        typer.echo(f"skipped {name}")
-                        up_to_date_count += 1
-                        continue
+            detail_lines.append(f"{name} is already up to date")
 
-                typer.echo(f"updating {name}...")
-                try:
-                    # Reinstall using force=True which cleans up and reinstalls
-                    result = install_tool(tool, force=True)
-                    typer.echo(f"updated {result.name} {result.version}")
-                    updated_count += 1
-                except (InstallError, AlreadyInstalled, Exception) as e:
-                    typer.echo(f"error: {name}: {e}")
-                    failed_count += 1
-            else:
-                typer.echo(f"{name} is already up to date")
-                up_to_date_count += 1
+    return updated_count, up_to_date_count, pinned_count, failed_count, check_results, detail_lines
 
-    if check_only and json_output:
+
+@app.command(name="check-updates")
+def check_updates(
+    names: Annotated[list[str] | None, typer.Argument(help="Tool names to check")] = None,
+    all_tools: Annotated[bool, typer.Option("--all", help="Check all installed tools")] = False,
+    tools: Annotated[
+        str | None, typer.Option("--tools", help="Comma-separated tool names to check")
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Check for updates for installed tools (read-only)."""
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    if names is None:
+        names = []
+    if tools:
+        tools_list = [t.strip() for t in tools.split(",") if t.strip()]
+        names.extend(tools_list)
+
+    if names and all_tools:
+        typer.echo("error: cannot use both tool names and --all", err=True)
+        raise typer.Exit(code=1)
+
+    if not names and not all_tools:
+        typer.echo("error: specify tool names or --all", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.registry import default_registry_path, load_registry
+    from otinstaller.state import list_installed
+
+    tools_registry = load_registry(default_registry_path())
+
+    if all_tools:
+        installed_list = list_installed()
+        if not installed_list:
+            typer.echo("nothing installed to check")
+            raise typer.Exit(code=0)
+        tools_to_check = [t.name for t in installed_list]
+    else:
+        tools_to_check = names
+
+    _, up_to_date_count, pinned_count, failed_count, check_results, detail_lines = _check_updates(
+        tools_to_check, tools_registry, json_output
+    )
+
+    if json_output:
         import json
 
-        typer.echo(json.dumps(check_results, indent=2))
-
-    if not check_only:
+        typer.echo(
+            json.dumps(
+                {
+                    "results": check_results,
+                    "updates_available": up_to_date_count,
+                    "pinned": pinned_count,
+                    "failed": failed_count,
+                }
+            )
+        )
+    else:
+        for line in detail_lines:
+            typer.echo(line)
         parts = []
-        if updated_count:
-            parts.append(f"{updated_count} updated")
         if up_to_date_count:
-            parts.append(f"{up_to_date_count} already up to date")
+            parts.append(f"{up_to_date_count} updates available")
         if pinned_count:
             parts.append(f"{pinned_count} pinned")
         if failed_count:
             parts.append(f"{failed_count} failed")
         if parts:
             typer.echo(", ".join(parts))
-        # For actual updates, exit 1 if any failed
-        if failed_count > 0:
-            raise typer.Exit(code=1)
+        elif not detail_lines:
+            typer.echo("all tools up to date")
+
+    # check-updates is informational only, always exit 0
+    raise typer.Exit(code=0)
+
+
+@app.command(name="update")
+def update(
+    names: Annotated[list[str] | None, typer.Argument(help="Tool names to update")] = None,
+    all_tools: Annotated[bool, typer.Option("--all", help="Update all installed tools")] = False,
+    tools: Annotated[
+        str | None, typer.Option("--tools", help="Comma-separated tool names to update")
+    ] = None,
+    check_only: Annotated[
+        bool, typer.Option("--check-only", help="Only check for updates, do not install")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output as JSON (only with --check-only)")
+    ] = False,
+):
+    """Update installed tools to their latest versions."""
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    if names is None:
+        names = []
+    if tools:
+        tools_list = [t.strip() for t in tools.split(",") if t.strip()]
+        names.extend(tools_list)
+
+    if names and all_tools:
+        typer.echo("error: cannot use both tool names and --all", err=True)
+        raise typer.Exit(code=1)
+
+    if not names and not all_tools:
+        typer.echo("error: specify tool names or --all", err=True)
+        raise typer.Exit(code=1)
+
+    from otinstaller.installer import AlreadyInstalled, InstallError, install_tool
+    from otinstaller.registry import default_registry_path, find_tool, load_registry
+    from otinstaller.state import list_installed
+
+    tools_registry = load_registry(default_registry_path())
+
+    if all_tools:
+        installed_list = list_installed()
+        if not installed_list:
+            typer.echo("nothing installed to update")
+            raise typer.Exit(code=0)
+        tools_to_check = [t.name for t in installed_list]
     else:
-        # For check-only, always exit 0 (informational only)
-        pass
+        tools_to_check = names
+
+    # First check for updates
+    _, up_to_date_count, pinned_count, failed_count, check_results, detail_lines = _check_updates(
+        tools_to_check, tools_registry, json_output
+    )
+
+    if check_only:
+        # Just show the check results
+        if json_output:
+            import json
+
+            typer.echo(json.dumps(check_results, indent=2))
+        else:
+            for line in detail_lines:
+                typer.echo(line)
+            parts = []
+            if up_to_date_count:
+                parts.append(f"{up_to_date_count} updates available")
+            if pinned_count:
+                parts.append(f"{pinned_count} pinned")
+            if failed_count:
+                parts.append(f"{failed_count} failed")
+            if parts:
+                typer.echo(", ".join(parts))
+            elif not detail_lines:
+                typer.echo("all tools up to date")
+        raise typer.Exit(code=0)
+
+    # Perform actual updates
+    updated_count = 0
+    up_to_date_count = 0
+    pinned_count = 0
+    failed_count = 0
+
+    for result in check_results:
+        name = result["tool"]
+        if "error" in result or "pinned" in result:
+            # Already counted in check_results
+            if result.get("pinned"):
+                pinned_count += 1
+            elif result.get("error"):
+                failed_count += 1
+            continue
+
+        if not result["outdated"]:
+            up_to_date_count += 1
+            continue
+
+        # Confirm update
+        if not yes:
+            if not sys.stdin.isatty():
+                typer.echo(f"error: confirmation needed for {name}, run with --yes", err=True)
+                failed_count += 1
+                continue
+            prompt = f"Update {name} from {result['current']} to {result['latest']}? [y/N]"
+            answer = typer.prompt(prompt, default="n")
+            if answer.lower() != "y":
+                typer.echo(f"skipped {name}")
+                up_to_date_count += 1
+                continue
+
+        typer.echo(f"updating {name}...")
+        try:
+            tool = find_tool(tools_registry, name)
+            result_obj = install_tool(tool, force=True)
+            typer.echo(f"updated {result_obj.name} {result_obj.version}")
+            updated_count += 1
+        except (InstallError, AlreadyInstalled, Exception) as e:
+            typer.echo(f"error: {name}: {e}")
+            failed_count += 1
+
+    parts = []
+    if updated_count:
+        parts.append(f"{updated_count} updated")
+    if up_to_date_count:
+        parts.append(f"{up_to_date_count} already up to date")
+    if pinned_count:
+        parts.append(f"{pinned_count} pinned")
+    if failed_count:
+        parts.append(f"{failed_count} failed")
+    if parts:
+        typer.echo(", ".join(parts))
+
+    if failed_count > 0:
+        raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(name="extract")
 def extract(
     target: Annotated[str, typer.Argument(help="Tool name or path to scan")],
     case: Annotated[
@@ -950,7 +1456,7 @@ def extract(
         typer.echo("no indicators found")
 
 
-@app.command()
+@app.command(name="diff")
 def diff(
     tool: Annotated[str, typer.Argument(help="Tool name")],
     target: Annotated[str, typer.Argument(help="Target to compare")],
@@ -997,7 +1503,7 @@ def diff(
         typer.echo(f"- {line}")
 
 
-@app.command()
+@app.command(name="auto")
 def auto(
     target: Annotated[
         str, typer.Argument(help="Target to scan (email, domain, IP, URL, username)")
@@ -1017,6 +1523,7 @@ def auto(
     ] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Auto-detect target type and run all matching installed tools."""
     import sys
@@ -1040,7 +1547,8 @@ def auto(
         detected_type = type
     else:
         detected_type = detect_target_type(target)
-        typer.echo(f"detected target type: {detected_type}")
+        if not json_output:
+            typer.echo(f"detected target type: {detected_type}")
 
     # Validate parallel
     if parallel < 1:
@@ -1052,7 +1560,12 @@ def auto(
     matching_tools = [t for t in tools_registry if detected_type in t.accepts]
 
     if not matching_tools:
-        typer.echo(f"no tools in registry accept '{detected_type}' targets")
+        if json_output:
+            import json
+
+            typer.echo(json.dumps({"detected_type": detected_type, "tools": []}))
+        else:
+            typer.echo(f"no tools in registry accept '{detected_type}' targets")
         raise typer.Exit(code=0)
 
     # Check which matching tools are installed
@@ -1061,24 +1574,50 @@ def auto(
     not_installed_matching = [t for t in matching_tools if t.name not in installed_matching]
 
     if not installed_matching:
-        typer.echo(f"no installed tools accept '{detected_type}' targets")
-        if not_installed_matching:
-            msg = "the following matching tools are not installed "
-            msg += "(run 'otinstaller install <name>' to include them):"
-            typer.echo(msg)
-            for t in not_installed_matching:
-                typer.echo(f"  {t.name}")
+        if json_output:
+            import json
+
+            typer.echo(
+                json.dumps(
+                    {
+                        "detected_type": detected_type,
+                        "tools": [],
+                        "not_installed": [t.name for t in not_installed_matching],
+                    }
+                )
+            )
+        else:
+            typer.echo(f"no installed tools accept '{detected_type}' targets")
+            if not_installed_matching:
+                msg = "the following matching tools are not installed "
+                msg += "(run 'otinstaller install <name>' to include them):"
+                typer.echo(msg)
+                for t in not_installed_matching:
+                    typer.echo(f"  {t.name}")
         raise typer.Exit(code=0)
 
     # Dry run: show what would run
     if dry_run:
-        typer.echo("would run the following installed tools:")
-        for t in installed_matching.values():
-            typer.echo(f"  {t.name}")
-        if not_installed_matching:
-            typer.echo("the following matching tools are not installed:")
-            for t in not_installed_matching:
-                typer.echo(f"  {t.name} (not installed)")
+        if json_output:
+            import json
+
+            typer.echo(
+                json.dumps(
+                    {
+                        "detected_type": detected_type,
+                        "tools": [t.name for t in installed_matching.values()],
+                        "not_installed": [t.name for t in not_installed_matching],
+                    }
+                )
+            )
+        else:
+            typer.echo("would run the following installed tools:")
+            for t in installed_matching.values():
+                typer.echo(f"  {t.name}")
+            if not_installed_matching:
+                typer.echo("the following matching tools are not installed:")
+                for t in not_installed_matching:
+                    typer.echo(f"  {t.name} (not installed)")
         raise typer.Exit(code=0)
 
     # Confirm before running
@@ -1132,19 +1671,26 @@ def auto(
         write_meta(meta, meta_path)
 
         if meta.exit_code == 0:
-            typer.echo(f"{meta.tool} done (exit 0)")
+            if not json_output:
+                typer.echo(f"{meta.tool} done (exit 0)")
             ok_count += 1
         else:
-            typer.echo(f"{meta.tool} failed (exit {meta.exit_code})")
+            if not json_output:
+                typer.echo(f"{meta.tool} failed (exit {meta.exit_code})")
             failed_count += 1
 
-    typer.echo(f"{ok_count} ok, {failed_count} failed")
+    if json_output:
+        import json
+
+        typer.echo(json.dumps({"ok": ok_count, "failed": failed_count}))
+    else:
+        typer.echo(f"{ok_count} ok, {failed_count} failed")
 
     if failed_count > 0:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(name="example")
 def example(
     tool: Annotated[str, typer.Argument(help="Tool name")],
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
@@ -1224,13 +1770,14 @@ def example(
         typer.echo(content)
 
 
-@app.command()
+@app.command(name="init")
 def init(
     yes: Annotated[
         bool, typer.Option("--yes", "-y", help="Accept notice without prompting")
     ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Initialize configuration and directories."""
     # Create directories
@@ -1239,9 +1786,11 @@ def init(
     ensure_dir(get_logs_dir())
 
     # Handle notice acceptance
+    notice_accepted = False
     if not has_accepted():
-        console = _make_console(no_color)
-        console.print(NOTICE_TEXT)
+        if not json_output:
+            console = _make_console(no_color)
+            console.print(NOTICE_TEXT)
         if not yes:
             if not sys.stdin.isatty():
                 typer.echo("error: confirmation needed, run with --yes", err=True)
@@ -1251,6 +1800,7 @@ def init(
                 typer.echo("notice not accepted", err=True)
                 raise typer.Exit(code=1)
         record_acceptance()
+        notice_accepted = True
 
     # Handle .env file
     env_file = get_env_file()
@@ -1258,23 +1808,41 @@ def init(
         "# API keys for tools managed by otinstaller.\n"
         "# Add one KEY=value per line. Keep this file private.\n"
     )
+    env_created = False
     if not env_file.exists():
         env_file.write_text(env_content)
         os.chmod(env_file, 0o600)
+        env_created = True
     else:
         # Fix permissions if needed
         try:
             current_mode = env_file.stat().st_mode & 0o777
             if current_mode != 0o600:
                 os.chmod(env_file, 0o600)
-                typer.echo(f"fixed permissions on {env_file}")
+                if not json_output:
+                    typer.echo(f"fixed permissions on {env_file}")
         except OSError:
             pass
 
-    # Print summary
-    typer.echo(f"Home directory: {get_home()}")
-    typer.echo(f"Tools directory: {get_tools_dir()}")
-    typer.echo(f"Env file: {env_file}")
+    if json_output:
+        import json
+
+        typer.echo(
+            json.dumps(
+                {
+                    "home_directory": str(get_home()),
+                    "tools_directory": str(get_tools_dir()),
+                    "env_file": str(env_file),
+                    "notice_accepted": notice_accepted,
+                    "env_created": env_created,
+                }
+            )
+        )
+    else:
+        # Print summary
+        typer.echo(f"Home directory: {get_home()}")
+        typer.echo(f"Tools directory: {get_tools_dir()}")
+        typer.echo(f"Env file: {env_file}")
 
 
 keys_app = typer.Typer(no_args_is_help=True, help="Manage API keys.")
@@ -1367,7 +1935,7 @@ def keys_check(
             typer.echo(f"  Adding {key} would unlock {count} more tool(s)")
 
 
-@app.command()
+@app.command(name="resume")
 def resume(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     dry_run: Annotated[
@@ -1533,10 +2101,11 @@ def resume(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(name="doctor")
 def doctor(
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Run diagnostics."""
     import shutil
@@ -1544,43 +2113,57 @@ def doctor(
     import sys
     import tempfile
 
+    checks = []
     problems = 0
 
     # 1. Platform check
     if sys.platform != "linux":
-        typer.echo("[problem] platform is not Linux")
+        checks.append(
+            {"check": "platform", "status": "problem", "message": "platform is not Linux"}
+        )
         problems += 1
-        if not verbose:
-            raise typer.Exit(code=1)
     else:
-        typer.echo("[ok] platform is Linux")
+        checks.append({"check": "platform", "status": "ok", "message": "platform is Linux"})
 
     # 2. Distro detection (informational)
     distro = get_distro()
-    typer.echo(f"[ok] distro: {distro}")
+    checks.append({"check": "distro", "status": "ok", "message": f"distro: {distro}"})
 
     # 3. Python version
     major, minor = sys.version_info[:2]
     if major == 3 and 10 <= minor <= 12:
-        typer.echo(f"[ok] python {major}.{minor} is supported")
+        checks.append(
+            {
+                "check": "python_version",
+                "status": "ok",
+                "message": f"python {major}.{minor} is supported",
+            }
+        )
     else:
-        typer.echo(
-            f"[problem] python {major}.{minor} is not supported, this project targets 3.10-3.12"
+        checks.append(
+            {
+                "check": "python_version",
+                "status": "problem",
+                "message": (
+                    f"python {major}.{minor} is not supported, this project targets 3.10-3.12"
+                ),
+            }
         )
         problems += 1
 
     # 4. git check
     if shutil.which("git"):
-        typer.echo("[ok] git found")
+        checks.append({"check": "git", "status": "ok", "message": "git found"})
     else:
-        typer.echo("[problem] git not found")
         family = get_distro_family()
+        msg = "git not found"
         if family == "debian":
-            typer.echo("  install with: sudo apt install git")
+            msg += "; install with: sudo apt install git"
         elif family == "arch":
-            typer.echo("  install with: sudo pacman -S git")
+            msg += "; install with: sudo pacman -S git"
         else:
-            typer.echo("  install git with your package manager")
+            msg += "; install git with your package manager"
+        checks.append({"check": "git", "status": "problem", "message": msg})
         problems += 1
 
     # 5. venv module check
@@ -1595,17 +2178,18 @@ def doctor(
             venv_ok = True
 
     if venv_ok:
-        typer.echo("[ok] venv module works")
+        checks.append({"check": "venv", "status": "ok", "message": "venv module works"})
     else:
-        typer.echo("[problem] venv module failed")
         family = get_distro_family()
         py_version = f"python{major}.{minor}"
+        msg = "venv module failed"
         if family == "debian":
-            typer.echo(f"  install with: sudo apt install {py_version}-venv")
+            msg += f"; install with: sudo apt install {py_version}-venv"
         elif family == "arch":
-            typer.echo("  should be included with python on Arch, check your install")
+            msg += "; should be included with python on Arch, check your install"
         else:
-            typer.echo("  install python-venv with your package manager")
+            msg += "; install python-venv with your package manager"
+        checks.append({"check": "venv", "status": "problem", "message": msg})
         problems += 1
 
     # 6. Home directory writable
@@ -1621,10 +2205,35 @@ def doctor(
         pass
 
     if home_ok:
-        typer.echo("[ok] home directory writable")
+        checks.append(
+            {"check": "home_writable", "status": "ok", "message": "home directory writable"}
+        )
     else:
-        typer.echo("[problem] home directory not writable")
+        checks.append(
+            {
+                "check": "home_writable",
+                "status": "problem",
+                "message": "home directory not writable",
+            }
+        )
         problems += 1
+
+    if json_output:
+        import json
+
+        typer.echo(json.dumps({"checks": checks, "problems": problems}))
+        if problems > 0:
+            raise typer.Exit(code=1)
+        return
+
+    # Human-readable output
+    for check in checks:
+        prefix = "[ok]" if check["status"] == "ok" else "[problem]"
+        typer.echo(f"{prefix} {check['message']}")
+
+    # Early exit for non-Linux when not verbose (matches original behavior)
+    if sys.platform != "linux" and not verbose:
+        raise typer.Exit(code=1)
 
     if problems > 0:
         raise typer.Exit(code=1)

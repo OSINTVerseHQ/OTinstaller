@@ -1,0 +1,4 @@
+EDGAR Tool example
+Company: Example Corp
+CIK: 1234567
+Filings: 10-K, 10-Q

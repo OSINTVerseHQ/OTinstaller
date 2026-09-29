@@ -1,0 +1,3 @@
+Blackbird example output
+Username: johndoe
+Found on: Twitter, GitHub, LinkedIn

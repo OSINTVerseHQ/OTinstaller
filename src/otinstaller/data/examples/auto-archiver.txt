@@ -1,0 +1,3 @@
+Auto Archiver example
+URL: https://example.com
+Archived to: archive.example.com/abc123

@@ -1,0 +1,165 @@
+# otinstaller - LLM Usage Guide
+
+This file describes how to use otinstaller programmatically or via CLI for AI agents.
+
+## Overview
+
+otinstaller is a CLI tool manager that installs, runs, updates, and removes open-source command line tools by name. Each tool runs in its own virtualenv. Results are saved automatically.
+
+## Installation
+
+`ash
+# System-wide (recommended for agents)
+pipx install otinstaller
+
+# Or from source
+pip install -e .
+`
+
+Commands available as both otinstaller and ot.
+
+## Key Concepts
+
+- Tools: Managed CLI programs, each in its own virtualenv
+- Typed inputs: Standardized prefixes for tool arguments
+- Results: Saved to ./results/<tool>/<target>/ with metadata
+- API keys: Stored in ~/.otinstaller/.env (600 permissions)
+
+## Typed Input Prefixes
+
+Use these instead of tool-specific flags:
+
+| Prefix | Type | Example |
+|--------|------|---------|
+| u: | username | u:johndoe |
+| e: | email | e:john@example.com |
+| p: | phone | p:+15551234567 |
+| d: | domain | d:example.com |
+| url: | URL | url:https://example.com |
+| q: | query | q:search terms |
+| geo: | coordinates | geo:32.22,-110.97 |
+| tg: | Telegram channel | tg:channelname |
+
+## Common Commands
+
+### Initialize
+`ash
+otinstaller init --yes
+`
+
+### Install tools
+`ash
+otinstaller install sherlock maigret --yes
+`
+
+### Run tools with typed inputs
+`ash
+otinstaller run sherlock -- u:johndoe
+otinstaller run ghunt -- u:johndoe e:john@example.com
+`
+
+### Run all matching tools (--all / -a)
+`ash
+otinstaller run -a u:johndoe
+otinstaller run --all u:johndoe e:john@example.com
+otinstaller run --all u:johndoe --include-credentialed
+`
+
+### Check for updates
+`ash
+otinstaller check-updates
+otinstaller check-updates --tools sherlock,maigret --json
+`
+
+### Update tools
+`ash
+otinstaller update --all --yes
+otinstaller update sherlock maigret --yes
+otinstaller update --tools sherlock,maigret --yes
+`
+
+### List and search tools
+`ash
+otinstaller list --json
+otinstaller list --installed --json
+otinstaller search username --json
+`
+
+### Get tool info
+`ash
+otinstaller info sherlock --json
+otinstaller sherlock --json  # bare name also works
+`
+
+### Run with auto-detection
+`ash
+otinstaller auto johndoe@example.com --yes
+`
+
+### Check API keys
+`ash
+otinstaller keys check --json
+`
+
+## Agent-Friendly Features
+
+- All commands support --json: Machine-readable output
+- Stable exit codes: 0=success, 1=error, 2=invalid input, 130=interrupted
+- No prompts in CI: Commands detect non-interactive stdin and fail with clear error unless --yes is used
+- No prompts with --yes: Use -y or --yes to skip all confirmations
+- Short alias: ot works everywhere otinstaller works
+- Bare tool names: otinstaller sherlock == otinstaller info sherlock
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Invalid input / unsupported input type |
+| 130 | Interrupted (SIGINT/Ctrl+C) |
+
+## JSON Output Format
+
+Most commands support --json. Examples:
+
+`json
+// otinstaller list --json
+[{name: sherlock, display_name: Sherlock, description: ..., tier: community, capabilities: [username-search]}]
+
+// otinstaller info sherlock --json
+{name: sherlock, display_name: Sherlock, description: ..., tier: community, install: {method: pip, package: sherlock-project, version: 0.16.2}, entrypoint: {command: sherlock}, capabilities: [username-search, social-media], topics: [username, social-media], api_keys: {required: [], optional: []}, needs_config: false, verified: {date: 2026-09-24, version: 0.16.2, os: Ubuntu 26.04 LTS, python: 3.12.14}, accepts: [username], input_types: {u: --username}}
+
+// otinstaller check-updates --json
+{results: [{tool: sherlock, current: 0.16.2, latest: 0.17.0, outdated: true}], updates_available: 1, pinned: 0, failed: 0}
+`
+
+## Responsible Use
+
+otinstaller installs third-party tools. You are solely responsible for compliance with laws and terms of service. Tools marked dual-use require explicit acceptance of the responsible use notice.
+
+## Directory Structure
+
+~/.otinstaller/
+├── .env              # API keys (600 perms)
+├── accepted.json     # Notice acceptance
+├── tools/            # Per-tool virtualenvs
+├── logs/             # Install logs
+├── jobs/             # Job markers for resume
+└── state.db          # SQLite state
+
+Working directory:
+./results/
+├── <tool>/
+│   └── <target>/
+│       ├── <timestamp>_<tool>_<target>_<runid>.txt
+│       └── <timestamp>_<tool>_<target>_<runid>.meta.json
+
+## Available Tools (44)
+
+Run otinstaller list --json for the complete list. Key tools include:
+- sherlock, maigret, ghunt, theharvester, spiderfoot
+- blackbird, telegram-phone-number-checker, auto-archiver
+- edgar-tool, instagram-location-search, telepathy
+- holehe, bbot, dnstwist, h8mail, user-scanner
+- And many more...
