@@ -190,7 +190,7 @@ def _print_table(console: Console, tools: list, json_output: bool) -> None:
     typer.echo(f"{count} tool{'s' if count != 1 else ''}")
 
 
-_INPUT_TYPE_PREFIXES = ("u", "e", "p", "d", "url", "q", "geo", "tg")
+_INPUT_TYPE_PREFIXES = ("u", "e", "p", "d", "url", "q", "geo", "tg", "lat", "lng")
 
 
 def _parse_typed_inputs(args: list[str]) -> tuple[dict[str, str], list[str]]:

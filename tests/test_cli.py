@@ -855,11 +855,12 @@ def test_doctor_not_linux(monkeypatch, tmp_path):
     # CliRunner.invoke() breaks when sys.platform="win32" because click's testing
     # internals try to use Windows-only APIs (_winapi, msvcrt) that don't exist on Linux.
     # Test the real doctor command logic by calling the function directly with a mocked sys.
-    import sys
-    from unittest.mock import MagicMock
-    import typer
     import io
-    from contextlib import redirect_stdout, redirect_stderr
+    import sys
+    from contextlib import redirect_stderr, redirect_stdout
+    from unittest.mock import MagicMock
+
+    import typer
 
     # Import doctor first (click/typer loaded with real sys.platform="linux")
     from otinstaller.cli import doctor
@@ -873,6 +874,7 @@ def test_doctor_not_linux(monkeypatch, tmp_path):
     mock_sys.argv = ["otinstaller", "doctor"]
 
     import sys as sys_module
+
     sys_module.modules["sys"] = mock_sys
 
     stdout = io.StringIO()
