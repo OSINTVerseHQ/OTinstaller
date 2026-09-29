@@ -18,6 +18,8 @@ Python 3.10 or newer, git, and the `venv` module. On Debian, Ubuntu and Kali, in
 sudo apt install python3-venv git
 ```
 
+Note: Some managed tools may not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. If you encounter install failures on newer Python versions, try running otinstaller in a Python 3.12 virtualenv.
+
 ## Install otinstaller
 
 These commands install otinstaller itself. Run them in this repository's folder. A virtualenv is a private Python folder, so this install does not change the Python that came with the system.

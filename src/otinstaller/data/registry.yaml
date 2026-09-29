@@ -1520,7 +1520,7 @@ tools:
 
 - name: auto-archiver
   display_name: Auto Archiver
-  description: Automatically archive web content from various sources.
+  description: Automatically archive web content from various sources. Requires Python <3.13 (no wheels for 3.13+; dependency pdqhash needs C++ compiler).
   repo: bellingcat/auto-archiver
   license: MIT
   stars: 1122
@@ -1589,7 +1589,7 @@ tools:
   - name
   - domain
   input_types:
-    q: ""
+    q: "text-search"
     d: ""
   example: examples/edgar-tool.txt
 
@@ -1633,7 +1633,7 @@ tools:
 
 - name: telepathy
   display_name: Telepathy
-  description: OSINT toolkit for investigating Telegram chats and accounts.
+  description: OSINT toolkit for investigating Telegram chats and accounts. Requires Python <3.13 (dependency googletrans/httpx uses removed cgi module).
   repo: telepathy/telepathy
   license: MIT
   stars: 0

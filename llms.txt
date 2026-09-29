@@ -155,7 +155,7 @@ Working directory:
 │       ├── <timestamp>_<tool>_<target>_<runid>.txt
 │       └── <timestamp>_<tool>_<target>_<runid>.meta.json
 
-## Available Tools (44)
+## Available Tools (47)
 
 Run otinstaller list --json for the complete list. Key tools include:
 - sherlock, maigret, ghunt, theharvester, spiderfoot
