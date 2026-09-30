@@ -175,6 +175,7 @@ async def run_tools_parallel(
     case: str | None,
     max_parallel: int,
     stream: bool,
+    status_queue: asyncio.Queue[tuple] | None = None,
 ) -> list[RunMeta]:
     """Run multiple tools in parallel with a concurrency limit.
 
@@ -184,6 +185,11 @@ async def run_tools_parallel(
 
     extra_args can be a list (same args for all tools) or a dict mapping
     tool name to its specific extra args list.
+
+    status_queue is optional one-way status reporting: workers put
+    ("running", name), ("done", name, exit_code) or ("error", name)
+    tuples onto it for a display task to consume. It is unbounded, so
+    producers never block on it.
     """
     cancel_event = asyncio.Event()
     semaphore = asyncio.Semaphore(max_parallel)
@@ -197,17 +203,27 @@ async def run_tools_parallel(
         root = roots[tool.name]
         tool_extra_args = get_extra_args(tool.name)
         async with semaphore:
-            return await asyncio.to_thread(
-                run_tool,
-                tool,
-                root,
-                tool_extra_args,
-                target=target,
-                case=case,
-                env_overrides=None,
-                stream=stream,
-                cancel_event=cancel_event,
-            )
+            if status_queue is not None:
+                await status_queue.put(("running", tool.name))
+            try:
+                result = await asyncio.to_thread(
+                    run_tool,
+                    tool,
+                    root,
+                    tool_extra_args,
+                    target=target,
+                    case=case,
+                    env_overrides=None,
+                    stream=stream,
+                    cancel_event=cancel_event,
+                )
+            except Exception:
+                if status_queue is not None:
+                    await status_queue.put(("error", tool.name))
+                raise
+            if status_queue is not None:
+                await status_queue.put(("done", tool.name, result.exit_code))
+            return result
 
     # Use gather with return_exceptions=True so one failure doesn't cancel others
     tasks = [run_one(t) for t in tools]
