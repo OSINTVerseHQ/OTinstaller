@@ -1,0 +1,7 @@
+name: domain-recon
+description: "Reconnaissance on a domain"
+requires_target: true
+tools:
+  - sherlock
+  - dnstwist
+  - ctfr

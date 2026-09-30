@@ -2113,6 +2113,132 @@ def resume(
         raise typer.Exit(code=1)
 
 
+@app.command(name="playbook")
+def playbook(
+    name: Annotated[str | None, typer.Argument(help="Playbook name to run")] = None,
+    target: Annotated[str | None, typer.Argument(help="Target for the playbook")] = None,
+    list_all: Annotated[
+        bool, typer.Option("--list", "-l", help="List available playbooks")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
+    parallel: Annotated[int, typer.Option("-p", help="Max parallel tools")] = 4,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    no_color: Annotated[bool, typer.Option("--no-color", help="Disable colors")] = False,
+):
+    """Run a playbook or list available playbooks."""
+
+    if sys.platform != "linux":
+        typer.echo("error: otinstaller currently supports Linux only", err=True)
+        raise typer.Exit(code=1)
+
+    if not has_accepted():
+        typer.echo("error: run 'otinstaller init' first", err=True)
+        raise typer.Exit(code=1)
+
+    import yaml
+
+    playbook_dir = Path("playbooks")
+    if not playbook_dir.exists():
+        typer.echo("error: no playbooks directory found", err=True)
+        raise typer.Exit(code=1)
+
+    playbook_files = sorted(playbook_dir.glob("*.yaml")) + sorted(playbook_dir.glob("*.yml"))
+
+    if list_all or name is None:
+        if not playbook_files:
+            typer.echo("no playbooks found")
+            return
+
+        console = _make_console(no_color)
+        table = Table(title="Available Playbooks")
+        table.add_column("Name")
+        table.add_column("Description")
+        table.add_column("Tools")
+
+        for pf in playbook_files:
+            try:
+                with pf.open() as f:
+                    data = yaml.safe_load(f)
+                desc = data.get("description", "")
+                tools = ", ".join(data.get("tools", []))
+                table.add_row(pf.stem, desc[:50] + ("..." if len(desc) > 50 else ""), tools)
+            except Exception:
+                table.add_row(pf.stem, "error loading", "error")
+
+        console.print(table)
+        return
+
+    # Find the playbook
+    pb_path = None
+    for pf in playbook_files:
+        if pf.stem == name:
+            pb_path = pf
+            break
+
+    if not pb_path:
+        typer.echo(f"error: playbook '{name}' not found", err=True)
+        raise typer.Exit(code=1)
+
+    # Load playbook
+    with pb_path.open() as f:
+        pb = yaml.safe_load(f)
+
+    if target is None and pb.get("requires_target", True):
+        typer.echo("error: target required", err=True)
+        raise typer.Exit(code=2)
+
+    # Check all tools are installed
+    installed = list_installed()
+    installed_names = {t.name for t in installed}
+    missing = [t for t in pb.get("tools", []) if t not in installed_names]
+
+    if missing:
+        typer.echo(f"error: tools not installed: {', '.join(missing)}", err=True)
+        raise typer.Exit(code=1)
+
+    tools_registry = _load_registry(False)
+    tools = [find_tool(tools_registry, t) for t in pb.get("tools", [])]
+    tools = [t for t in tools if t]
+
+    case = pb.get("case") or f"playbook-{name}"
+
+    if not json_output:
+        typer.echo(f"Running playbook '{name}' on target: {target or 'N/A'}")
+
+    # Run all tools against the target
+    extra_args = [target] if target else []
+
+    results = []
+    for tool in tools:
+        result = run_tool(
+            tool,
+            get_tools_dir() / tool.name,
+            extra_args,
+            target=target or "unspecified",
+            case=case,
+            env_overrides=None,
+            stream=False,
+            cancel_event=None,
+        )
+        results.append(result)
+
+    if json_output:
+        import json
+
+        typer.echo(
+            json.dumps(
+                [
+                    {"tool": r.tool, "exit_code": r.exit_code, "output": r.output_path}
+                    for r in results
+                ]
+            )
+        )
+    else:
+        for r in results:
+            status = "ok" if r.exit_code == 0 else "failed"
+            typer.echo(f"{r.tool} {status} (exit {r.exit_code})")
+
+
 @app.command(name="doctor")
 def doctor(
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
