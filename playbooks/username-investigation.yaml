@@ -1,0 +1,7 @@
+name: username-investigation
+description: "Investigate a username across multiple platforms"
+requires_target: true
+tools:
+  - sherlock
+  - maigret
+  - holehe
