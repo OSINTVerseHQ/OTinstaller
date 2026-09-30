@@ -11,6 +11,7 @@ htmlcov/
 
 # Virtual environment
 .venv/
+.venv-wsl/
 
 # Results
 results/
