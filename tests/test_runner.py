@@ -1,5 +1,6 @@
 """Runner tests."""
 
+import asyncio
 import tempfile
 import time
 from pathlib import Path
@@ -537,3 +538,93 @@ async def test_run_tool_does_not_leak_secrets_in_outputs(tmp_path):
                 # The secret should not be in the meta.json file content
                 assert secret_value not in str(meta.output_path)
                 assert secret_value not in str(meta.sha256)
+
+
+def _drain(queue: asyncio.Queue) -> list[tuple]:
+    events = []
+    while not queue.empty():
+        events.append(queue.get_nowait())
+    return events
+
+
+@pytest.mark.asyncio
+async def test_run_tools_parallel_status_queue(tmp_path):
+    """status_queue receives a running and a done event for every tool."""
+    tools = [make_fake_tool("toolA"), make_fake_tool("toolB")]
+    roots = {t.name: tmp_path / t.name for t in tools}
+    for root in roots.values():
+        root.mkdir(parents=True)
+
+    def mock_run_tool(
+        tool, root, extra_args, *, target, case, env_overrides, stream, cancel_event=None
+    ):
+        from datetime import datetime, timezone
+
+        from otinstaller.results import RunMeta
+
+        now = datetime.now(timezone.utc).isoformat()
+        return RunMeta(
+            command=[tool.name],
+            tool=tool.name,
+            tool_version="1.0",
+            target=target or "unspecified",
+            case=case,
+            started_at=now,
+            ended_at=now,
+            duration_seconds=0.0,
+            exit_code=0,
+            status="complete",
+            output_path=f"{tool.name}/unspecified/test.txt",
+            sha256="abc123",
+            bytes=100,
+        )
+
+    queue: asyncio.Queue = asyncio.Queue()
+    with patch("otinstaller.runner.run_tool", side_effect=mock_run_tool):
+        results = await run_tools_parallel(
+            tools,
+            roots,
+            [],
+            target="target1",
+            case=None,
+            max_parallel=2,
+            stream=False,
+            status_queue=queue,
+        )
+
+    assert len(results) == 2
+    events = _drain(queue)
+    running = [e for e in events if e[0] == "running"]
+    done = [e for e in events if e[0] == "done"]
+    assert sorted(e[1] for e in running) == ["toolA", "toolB"]
+    assert sorted(e[1] for e in done) == ["toolA", "toolB"]
+    assert all(e[2] == 0 for e in done)
+
+
+@pytest.mark.asyncio
+async def test_run_tools_parallel_status_queue_tool_raises(monkeypatch, tmp_path):
+    """A tool that raises still emits running and error events, result is failed."""
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path))
+    tool = make_fake_tool("boom")
+    root = tmp_path / "boom"
+    root.mkdir(parents=True)
+
+    def mock_run_tool(tool, root, extra_args, **kwargs):
+        raise RuntimeError("kaput")
+
+    queue: asyncio.Queue = asyncio.Queue()
+    with patch("otinstaller.runner.run_tool", side_effect=mock_run_tool):
+        results = await run_tools_parallel(
+            [tool],
+            {tool.name: root},
+            [],
+            target="target1",
+            case=None,
+            max_parallel=1,
+            stream=False,
+            status_queue=queue,
+        )
+
+    events = _drain(queue)
+    assert [e[0] for e in events] == ["running", "error"]
+    assert results[0].status == "failed"

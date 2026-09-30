@@ -12,6 +12,7 @@ from typing import Annotated
 import click
 import typer
 from rich.console import Console
+from rich.live import Live
 from rich.table import Table
 
 from otinstaller import __version__
@@ -42,13 +43,14 @@ from otinstaller.notice import (
 )
 from otinstaller.registry import (
     RegistryError,
+    Tool,
     default_registry_path,
     find_tool,
     load_registry,
     search_tools,
     suggest_names,
 )
-from otinstaller.results import write_meta
+from otinstaller.results import RunMeta, write_meta
 from otinstaller.runner import run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 
@@ -738,6 +740,85 @@ def remove(
             raise typer.Exit(code=1)
 
 
+async def _display_status(
+    status_queue: asyncio.Queue[tuple], tool_names: list[str], console: Console
+) -> None:
+    """Consume status events and render the live table until cancelled."""
+    states: dict[str, tuple[str, int | None]] = {name: ("pending", None) for name in tool_names}
+    styles = {
+        "pending": "yellow",
+        "running": "green",
+        "ok": "green",
+        "failed": "red",
+        "error": "red",
+    }
+
+    def build_table() -> Table:
+        table = Table(title="Tools")
+        table.add_column("Tool")
+        table.add_column("Status")
+        table.add_column("Exit")
+        for name in tool_names:
+            state, exit_code = states[name]
+            table.add_row(
+                name,
+                f"[{styles[state]}]{state}[/]",
+                "-" if exit_code is None else str(exit_code),
+            )
+        return table
+
+    with Live(build_table(), console=console, refresh_per_second=4) as live:
+        while True:
+            event = await status_queue.get()
+            name = event[1]
+            if event[0] == "running":
+                states[name] = ("running", None)
+            elif event[0] == "done":
+                states[name] = ("ok" if event[2] == 0 else "failed", event[2])
+            elif event[0] == "error":
+                states[name] = ("error", None)
+            live.update(build_table())
+
+
+async def _run_parallel_live(
+    tool_list: list[Tool],
+    roots: dict[str, Path],
+    tool_extra_args: dict[str, list[str]],
+    *,
+    target: str | None,
+    case: str | None,
+    max_parallel: int,
+    stream: bool,
+    console: Console,
+) -> list[RunMeta]:
+    """Run tools in parallel while a live status table is displayed.
+
+    The display task is cancelled and awaited before returning, so no
+    task outlives the run.
+    """
+    status_queue: asyncio.Queue[tuple] = asyncio.Queue()
+    display = asyncio.create_task(
+        _display_status(status_queue, [t.name for t in tool_list], console)
+    )
+    try:
+        return await run_tools_parallel(
+            tool_list,
+            roots,
+            tool_extra_args,
+            target=target,
+            case=case,
+            max_parallel=max_parallel,
+            stream=stream,
+            status_queue=status_queue,
+        )
+    finally:
+        display.cancel()
+        try:
+            await display
+        except asyncio.CancelledError:
+            pass
+
+
 @app.command(
     name="run", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
@@ -763,6 +844,9 @@ def run(
         bool, typer.Option("--include-credentialed", help="Include tools that require credentials")
     ] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
+    live: Annotated[
+        bool, typer.Option("--live", help="Show a live status table for parallel runs")
+    ] = False,
 ):
     """Run one or more tools with arguments passed through after --.
 
@@ -776,6 +860,8 @@ def run(
 
     With --all, runs every installed tool supporting the given input types.
     Only u, e, p, d, and url are valid with --all.
+    With --live, a live status table is shown while parallel runs are in
+    progress. It has no effect with --json or on single-tool runs.
     """
     raw_args = list(ctx.args)
     # Click strips the -- separator when allow_extra_args=True, so it won't be in ctx.args.
@@ -993,17 +1079,31 @@ def run(
             tool_extra_args_dict[t.name] = _build_tool_args(t, typed_inputs) + remaining_args
 
         try:
-            results = asyncio.run(
-                run_tools_parallel(
-                    tool_list,
-                    roots,
-                    tool_extra_args_dict,
-                    target=run_target,
-                    case=case,
-                    max_parallel=parallel,
-                    stream=verbose,
+            if live and not json_output:
+                results = asyncio.run(
+                    _run_parallel_live(
+                        tool_list,
+                        roots,
+                        tool_extra_args_dict,
+                        target=run_target,
+                        case=case,
+                        max_parallel=parallel,
+                        stream=verbose,
+                        console=_make_console(no_color),
+                    )
                 )
-            )
+            else:
+                results = asyncio.run(
+                    run_tools_parallel(
+                        tool_list,
+                        roots,
+                        tool_extra_args_dict,
+                        target=run_target,
+                        case=case,
+                        max_parallel=parallel,
+                        stream=verbose,
+                    )
+                )
         except KeyboardInterrupt:
             typer.echo("interrupted", err=True)
             raise typer.Exit(code=130) from None

@@ -1,5 +1,6 @@
 """CLI tests."""
 
+import asyncio
 import importlib.resources
 import json
 import os
@@ -3157,3 +3158,106 @@ def test_example_missing_file_errors_cleanly(monkeypatch, tmp_path):
         assert "error: example file for broken could not be loaded" in result.output
     finally:
         otinstaller.registry.load_registry = original_load_registry
+
+
+def test_run_help_lists_live_flag():
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--live" in result.output
+
+
+def test_run_live_status_queue_flag(monkeypatch, tmp_path):
+    """--live passes a status queue; without it, and with --live --json, none is passed."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(
+        "OTINSTALLER_REGISTRY",
+        str(
+            make_registry_yaml(
+                tmp_path,
+                [
+                    {
+                        "name": "sherlock",
+                        "display_name": "Sherlock",
+                        "description": "Search usernames",
+                        "install": {"method": "pip", "package": "sherlock-project"},
+                        "entrypoint": {"command": "sherlock"},
+                        "capabilities": ["username-search"],
+                    },
+                    {
+                        "name": "maigret",
+                        "display_name": "Maigret",
+                        "description": "Build profile",
+                        "install": {"method": "pip", "package": "maigret"},
+                        "entrypoint": {"command": "maigret"},
+                        "capabilities": ["username-search"],
+                    },
+                ],
+            )
+        ),
+    )
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    meta1 = type(
+        "Meta",
+        (),
+        {
+            "tool": "sherlock",
+            "exit_code": 0,
+            "output_path": "sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt",
+            "sha256": "abc123",
+            "tool_version": "",
+        },
+    )()
+    meta2 = type(
+        "Meta",
+        (),
+        {
+            "tool": "maigret",
+            "exit_code": 0,
+            "output_path": "maigret/unspecified/20240101-000000_maigret_unspecified_abc123.txt",
+            "sha256": "def456",
+            "tool_version": "",
+        },
+    )()
+
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.run_tool"):
+            with patch(
+                "otinstaller.cli.run_tools_parallel", return_value=[meta1, meta2]
+            ) as mock_run_parallel:
+                with patch("otinstaller.cli.write_meta"):
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--live", "--", "someuser"]
+                    )
+                    assert result.exit_code == 0
+                    assert isinstance(mock_run_parallel.call_args[1]["status_queue"], asyncio.Queue)
+
+                    result = runner.invoke(app, ["run", "sherlock", "maigret", "--", "someuser"])
+                    assert result.exit_code == 0
+                    assert mock_run_parallel.call_args[1].get("status_queue") is None
+
+                    result = runner.invoke(
+                        app, ["run", "sherlock", "maigret", "--live", "--json", "--", "someuser"]
+                    )
+                    assert result.exit_code == 0
+                    assert mock_run_parallel.call_args[1].get("status_queue") is None
