@@ -865,6 +865,9 @@ tools:
     method: pip
     package: openosint
     version: 2.30.0
+    extra_packages:
+    - holehe
+    - sherlock-project
   entrypoint:
     command: openosint
   smoke_args:

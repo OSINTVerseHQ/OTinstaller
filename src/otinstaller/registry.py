@@ -27,6 +27,7 @@ class Install:
     ref: str | None = None
     requirements: str | None = None
     as_package: bool = False
+    extra_packages: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,14 @@ def _validate_install(install: Install, tool_name: str) -> None:
             raise RegistryError(
                 f"tool '{tool_name}': install.as_package must be false for pip method"
             )
+        if install.extra_packages:
+            for pkg in install.extra_packages:
+                if not _PACKAGE_RE.match(pkg):
+                    msg = (
+                        f"tool '{tool_name}': install.extra_packages entry '{pkg}' "
+                        f"must match ^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                    )
+                    raise RegistryError(msg)
     else:
         if not install.url:
             raise RegistryError(f"tool '{tool_name}': install.url is required for git method")
@@ -311,6 +320,7 @@ def parse_tool(data: dict) -> Tool:
         ref=install_data.get("ref"),
         requirements=install_data.get("requirements"),
         as_package=install_data.get("as_package", False),
+        extra_packages=tuple(install_data.get("extra_packages", [])),
     )
     _validate_install(install, tool_name)
 

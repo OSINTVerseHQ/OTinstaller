@@ -26,13 +26,22 @@ def install_pip(
     if package.startswith("-"):
         raise ValueError(f"refusing to install package starting with '-': {package}")
 
+    python = venv_python(root)
+
     spec = package
     if tool.install.version:
         spec = f"{package}=={tool.install.version}"
-
-    python = venv_python(root)
     run(
         [str(python), "-m", "pip", "install", spec],
         log=log,
         stream=stream,
     )
+
+    for extra_pkg in tool.install.extra_packages:
+        if extra_pkg.startswith("-"):
+            raise ValueError(f"refusing to install extra package starting with '-': {extra_pkg}")
+        run(
+            [str(python), "-m", "pip", "install", extra_pkg],
+            log=log,
+            stream=stream,
+        )
