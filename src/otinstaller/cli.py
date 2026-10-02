@@ -133,6 +133,27 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def _print_about() -> None:
+    """Print the about banner with credits."""
+    console = Console()
+    console.print()
+    console.print("[bold]OTinstaller[/bold]")
+    console.print("Install, run, update, and remove open-source command line tools by name.")
+    console.print()
+    console.print("[bold]Credits[/bold]")
+    console.print("  Builder: [link=https://www.linkedin.com/in/sushantkoul07]Sushant Koul[/link]")
+    console.print("  [link=https://x.com/dheerajydv19]Dheeraj Yadav[/link] (@dheerajydv19)")
+    console.print("  [link=https://osintverse.com/]OSINTverse[/link]")
+
+
+@app.command(name="about")
+def about(
+    no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
+):
+    """Show the about banner with credits."""
+    _print_about()
+
+
 @app.callback()
 def main(
     version: Annotated[
@@ -162,7 +183,9 @@ def _make_console(no_color: bool) -> Console:
     return Console(color_system=None if no_color else "auto")
 
 
-def _print_table(console: Console, tools: list, json_output: bool) -> None:
+def _print_table(
+    console: Console, tools: list, json_output: bool, show_status: bool = False
+) -> None:
     if json_output:
         data = [
             {
@@ -181,12 +204,23 @@ def _print_table(console: Console, tools: list, json_output: bool) -> None:
         typer.echo("no tools in the registry")
         return
 
+    installed_names = set()
+    if show_status:
+        installed = list_installed()
+        installed_names = {t.name for t in installed}
+
     table = Table(show_header=True, header_style="bold")
     table.add_column("Name")
     table.add_column("Tier")
+    if show_status:
+        table.add_column("Status")
     table.add_column("Description")
     for tool in tools:
-        table.add_row(tool.name, tool.tier, tool.description)
+        if show_status:
+            status = "installed" if tool.name in installed_names else "not installed"
+            table.add_row(tool.name, tool.tier, status, tool.description)
+        else:
+            table.add_row(tool.name, tool.tier, tool.description)
     console.print(table)
     count = len(tools)
     typer.echo(f"{count} tool{'s' if count != 1 else ''}")
@@ -371,7 +405,7 @@ def list_tools(
 
     tools = _load_registry(verbose)
     console = _make_console(no_color)
-    _print_table(console, tools, json_output)
+    _print_table(console, tools, json_output, show_status=True)
 
 
 @app.command(name="search")
@@ -508,14 +542,26 @@ def info(
 
 @app.command(name="install")
 def install(
-    names: Annotated[list[str], typer.Argument(help="Tool names to install")],
+    names: Annotated[list[str], typer.Argument(help="Tool names to install")] = None,
+    all_tools: Annotated[
+        bool, typer.Option("--all", "-a", help="Install all available tools from the registry")
+    ] = False,
+    include_credentialed: Annotated[
+        bool,
+        typer.Option(
+            "--include-credentialed",
+            help="Include tools that require API keys/config (needs_config: true)",
+        ),
+    ] = False,
     force: Annotated[bool, typer.Option("--force", help="Reinstall if already installed")] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
-    """Install tools by name."""
+    if names is None:
+        names = []
+    """Install tools by name. Use --all to install all available tools."""
     if sys.platform != "linux":
         typer.echo("error: otinstaller currently supports Linux only", err=True)
         raise typer.Exit(code=1)
@@ -525,55 +571,85 @@ def install(
 
     tools_registry = _load_registry(verbose)
 
-    # Resolve all names
-    tools = []
-    errors = []
-    for name in names:
-        tool = find_tool(tools_registry, name)
-        if not tool:
-            suggestions = suggest_names(tools_registry, name)
-            msg = f"error: unknown tool '{name}'"
-            if suggestions:
-                msg += f"\ndid you mean: {', '.join(suggestions)}?"
-            errors.append(msg)
-        else:
-            tools.append(tool)
-
-    if errors:
-        if json_output:
-            import json
-
-            typer.echo(json.dumps({"errors": errors}))
-        else:
-            for err in errors:
-                typer.echo(err, err=True)
-        raise typer.Exit(code=1)
-
-    # Print what will be installed
-    has_dual_use = False
-    for tool in tools:
-        if tool.install.method == "pip":
-            spec = tool.install.package or ""
-            if tool.install.version:
-                spec += f"=={tool.install.version}"
-            typer.echo(f"{tool.name} (pip: {spec})")
-        else:
-            typer.echo(f"{tool.name} (git: {tool.install.url})")
-        if "dual-use" in tool.capabilities:
-            has_dual_use = True
-
-    if has_dual_use:
-        typer.echo(NOTICE_SHORT)
-
-    # Confirmation
-    if not yes:
-        if not sys.stdin.isatty():
-            typer.echo("error: confirmation needed, run with --yes", err=True)
+    if all_tools:
+        # Filter tools based on include_credentialed flag
+        tools = [t for t in tools_registry if include_credentialed or not t.needs_config]
+    else:
+        # Resolve names from arguments
+        if not names:
+            typer.echo("error: tool names required (or use --all)", err=True)
             raise typer.Exit(code=1)
-        answer = typer.prompt("Install? [y/N]", default="n")
-        if answer.lower() != "y":
-            typer.echo("cancelled")
+        tools = []
+        errors = []
+        for name in names:
+            tool = find_tool(tools_registry, name)
+            if not tool:
+                suggestions = suggest_names(tools_registry, name)
+                msg = f"error: unknown tool '{name}'"
+                if suggestions:
+                    msg += f"\ndid you mean: {', '.join(suggestions)}?"
+                errors.append(msg)
+            else:
+                tools.append(tool)
+
+        if errors:
+            if json_output:
+                import json
+
+                typer.echo(json.dumps({"errors": errors}))
+            else:
+                for err in errors:
+                    typer.echo(err, err=True)
             raise typer.Exit(code=1)
+
+    if all_tools:
+        # Show disclaimer for --all
+        needs_config_count = sum(1 for t in tools_registry if t.needs_config)
+        total_registry = len(tools_registry)
+        typer.echo("DISCLAIMER:")
+        typer.echo(f"This will install {len(tools)} of {total_registry} tools from the registry.")
+        if needs_config_count > 0:
+            typer.echo(
+                f"{needs_config_count} tools require API keys/config (needs_config: true). "
+                f"Use --include-credentialed to include them."
+            )
+        typer.echo("Some tools have heavy dependencies and may take a long time to install.")
+        typer.echo("Confirm this is intentional.")
+
+        if not yes:
+            if not sys.stdin.isatty():
+                typer.echo("error: confirmation needed, run with --yes", err=True)
+                raise typer.Exit(code=1)
+            answer = typer.prompt("Continue? [y/N]", default="n")
+            if answer.lower() != "y":
+                typer.echo("cancelled")
+                raise typer.Exit(code=1)
+    else:
+        # Print what will be installed
+        has_dual_use = False
+        for tool in tools:
+            if tool.install.method == "pip":
+                spec = tool.install.package or ""
+                if tool.install.version:
+                    spec += f"=={tool.install.version}"
+                typer.echo(f"{tool.name} (pip: {spec})")
+            else:
+                typer.echo(f"{tool.name} (git: {tool.install.url})")
+            if "dual-use" in tool.capabilities:
+                has_dual_use = True
+
+        if has_dual_use:
+            typer.echo(NOTICE_SHORT)
+
+        # Confirmation
+        if not yes:
+            if not sys.stdin.isatty():
+                typer.echo("error: confirmation needed, run with --yes", err=True)
+                raise typer.Exit(code=1)
+            answer = typer.prompt("Install? [y/N]", default="n")
+            if answer.lower() != "y":
+                typer.echo("cancelled")
+                raise typer.Exit(code=1)
 
     # Install
     installed_count = 0
@@ -1955,6 +2031,7 @@ def init(
         typer.echo(f"Home directory: {get_home()}")
         typer.echo(f"Tools directory: {get_tools_dir()}")
         typer.echo(f"Env file: {env_file}")
+        _print_about()
 
 
 keys_app = typer.Typer(no_args_is_help=True, help="Manage API keys.")
