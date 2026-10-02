@@ -396,7 +396,7 @@ def test_bundled_registry_loads():
     names = [t.name for t in tools]
     # Should have 38 tools (40 - 2 denylisted + 1 theHarvester added back - 1 airecon deferred)
     # plus neutrosint, zen and thebigbrother added later
-    assert len(tools) == 47
+    assert len(tools) == 48
     assert "sherlock" in names
     assert "maigret" in names
     assert "theharvester" in names
@@ -561,7 +561,7 @@ def test_bundled_registry_all_entries_parse_and_pass_denylist():
     tools = load_registry(default_registry_path())
 
     # Every entry must parse successfully (already done by load_registry)
-    assert len(tools) == 47
+    assert len(tools) == 48
 
     # Load denylist and check each tool
     denylist = load_denylist(Path("registry/denylist.yaml"))

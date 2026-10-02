@@ -856,7 +856,7 @@ tools:
     url: --url
 - name: openosint
   display_name: Openosint
-  description: AI-powered OSINT agent with interactive REPL, MCP server, and CLI.
+  description: "AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes. Direct email/username scans work without ANTHROPIC_API_KEY. AI-REPL and MCP modes require ANTHROPIC_API_KEY (or --api-key). Other features need additional keys: SHODAN_API_KEY (shodan), VIRUSTOTAL_API_KEY (virustotal), CENSYS_API_ID + CENSYS_SECRET (censys), ABUSEIPDB_API_KEY (abuseipdb), IP2LOCATION_API_KEY (ip2location), BRIGHTDATA_API_KEY + BRIGHTDATA_SERP_ZONE/BRIGHTDATA_UNLOCKER_ZONE (Bright Data tools), OPENAI_API_KEY (OpenAI provider), OPENOSINT_PROXY_URL (proxy)."
   repo: OpenOSINT/OpenOSINT
   license: MIT
   stars: 1630
@@ -864,7 +864,7 @@ tools:
   install:
     method: pip
     package: openosint
-    version: 2.29.0
+    version: 2.30.0
   entrypoint:
     command: openosint
   smoke_args:
@@ -885,20 +885,29 @@ tools:
   - ai
   api_keys:
     required: []
-    optional: []
+    optional:
+    - ANTHROPIC_API_KEY
+    - SHODAN_API_KEY
+    - VIRUSTOTAL_API_KEY
+    - CENSYS_API_ID
+    - CENSYS_SECRET
+    - ABUSEIPDB_API_KEY
+    - IP2LOCATION_API_KEY
+    - BRIGHTDATA_API_KEY
+    - BRIGHTDATA_SERP_ZONE
+    - BRIGHTDATA_UNLOCKER_ZONE
+    - OPENAI_API_KEY
+    - OPENOSINT_PROXY_URL
   verified:
-    date: '2026-09-24'
-    version: 2.29.0
+    date: '2026-09-30'
+    version: 2.30.0
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
   - username
   - email
   - domain
-  input_types:
-    u: --username
-    e: --email
-    d: --domain
+  input_types: {}
 - name: crosslinked
   display_name: Crosslinked
   description: LinkedIn enumeration tool to extract valid employee names from an organization through search engine scraping.
@@ -1096,6 +1105,39 @@ tools:
     d: --domain
     u: --username
     e: --email
+- name: sublist3r
+  display_name: Sublist3r
+  description: Fast subdomain enumeration tool using multiple search engines and certificate transparency logs.
+  repo: aboul3la/Sublist3r
+  license: GPL-2.0
+  stars: 8500
+  tier: community
+  install:
+    method: pip
+    package: sublist3r
+    version: "1.0"
+  entrypoint:
+    command: sublist3r
+  smoke_args:
+  - --help
+  capabilities:
+  - subdomain-enum
+  - domain-recon
+  topics:
+  - subdomain
+  - domain
+  api_keys:
+    required: []
+    optional: []
+  verified:
+    date: '2026-09-30'
+    version: "1.0"
+    os: Ubuntu 26.04 LTS
+    python: 3.12.14
+  accepts:
+  - domain
+  input_types:
+    d: --domain
 - name: socid-extractor
   display_name: Socid Extractor
   description: 'The extraction engine behind Maigret: turn any profile URL into a structured OSINT record across 150+ sites.'
