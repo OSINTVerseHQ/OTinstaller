@@ -1,8 +1,8 @@
-# otinstaller
+# OTinstaller
 
 Install, run, update, and remove open-source command line tools by name.
 
-You pick a tool from a list. otinstaller downloads it into its own folder, runs it, and saves the output. You do not learn a different install method for each tool.
+You pick a tool from a list. OTinstaller downloads it into its own folder, runs it, and saves the output. You do not learn a different install method for each tool.
 
 Status: early development. Not published to PyPI yet.
 
