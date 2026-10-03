@@ -4,6 +4,7 @@ import asyncio
 import importlib.resources
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -3160,10 +3161,15 @@ def test_example_missing_file_errors_cleanly(monkeypatch, tmp_path):
         otinstaller.registry.load_registry = original_load_registry
 
 
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
 def test_run_help_lists_live_flag():
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
-    assert "--live" in result.output
+    assert "--live" in _strip_ansi(result.output)
 
 
 def test_run_live_status_queue_flag(monkeypatch, tmp_path):
