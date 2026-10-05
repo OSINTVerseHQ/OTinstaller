@@ -95,6 +95,7 @@ class Tool:
     verified: Verification | None = None
     accepts: tuple[str, ...] = ()
     input_types: dict[str, str] = None
+    requires_python: str | None = None
 
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
@@ -105,6 +106,7 @@ _REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 _COMMAND_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _CAPABILITY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _API_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+REQUIRES_PYTHON_RE = re.compile(r"^(<=|>=|==|!=|<|>)(\d+(?:\.\d+)+)$")
 
 
 def _validate_name(name: str, tool_name: str) -> None:
@@ -259,6 +261,13 @@ def _validate_stars(stars: int | None, tool_name: str) -> None:
         raise RegistryError(f"tool '{tool_name}': stars must be a non-negative integer")
 
 
+def _validate_requires_python(requires_python: str, tool_name: str) -> None:
+    if not isinstance(requires_python, str) or not REQUIRES_PYTHON_RE.match(requires_python):
+        raise RegistryError(
+            f"tool '{tool_name}': requires_python must look like '<3.13' or '>=3.10'"
+        )
+
+
 def _validate_input_types(input_types: dict[str, str] | None, tool_name: str) -> None:
     if input_types is None:
         return
@@ -295,6 +304,7 @@ def _validate_unknown_keys(data: dict, tool_name: str) -> None:
         "verified",
         "accepts",
         "input_types",
+        "requires_python",
     }
     for key in data:
         if key not in known_keys:
@@ -356,6 +366,10 @@ def parse_tool(data: dict) -> Tool:
     input_types = data.get("input_types")
     _validate_input_types(input_types, tool_name)
 
+    requires_python = data.get("requires_python")
+    if requires_python is not None:
+        _validate_requires_python(requires_python, tool_name)
+
     verified = None
     if "verified" in data and data["verified"]:
         v = data["verified"]
@@ -386,6 +400,7 @@ def parse_tool(data: dict) -> Tool:
         verified=verified,
         accepts=accepts,
         input_types=input_types or {},
+        requires_python=requires_python,
     )
 
 
