@@ -1,5 +1,6 @@
 """Installer core tests."""
 
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ from otinstaller.config import get_tools_dir
 from otinstaller.installer import (
     AlreadyInstalled,
     InstallError,
+    PythonVersionError,
     install_tool,
     remove_tool,
 )
@@ -246,6 +248,41 @@ def test_keyboard_interrupt_cleans_up(monkeypatch, tmp_path):
 
     # Directory should be cleaned up
     assert not (get_tools_dir() / "testtool").exists()
+
+
+def test_incompatible_python_fails_before_any_install_work(monkeypatch, tmp_path):
+    """a tool the running Python cannot satisfy fails early, before pip runs."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    tool = replace(make_tool_pip("testtool", "testpkg"), requires_python="<3.13")
+
+    with patch("otinstaller.compat.current_python", return_value=(3, 14, 4)):
+        with patch("otinstaller.installer.pip_install.run") as mock_pip_run:
+            with patch("otinstaller.installer.venv.create_venv") as mock_venv:
+                with pytest.raises(
+                    PythonVersionError,
+                    match="testtool requires Python <3.13 \\(you are running 3.14.4\\)",
+                ):
+                    install_tool(tool)
+
+    mock_pip_run.assert_not_called()
+    mock_venv.assert_not_called()
+    assert not (get_tools_dir() / "testtool").exists()
+    assert get_installed("testtool") is None
+
+
+def test_compatible_python_does_not_block_install(monkeypatch, tmp_path):
+    """a satisfied requires_python constraint does not block the install."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    tool = replace(make_tool_pip("testtool", "testpkg"), requires_python="<3.13")
+
+    with patch("otinstaller.compat.current_python", return_value=(3, 12, 14)):
+        with patch("otinstaller.installer.pip_install.run"):
+            with patch("otinstaller.installer.venv.create_venv"):
+                with patch("otinstaller.installer.core._get_version_pip", return_value="1.0"):
+                    with _mock_entrypoint_check():
+                        result = install_tool(tool)
+
+    assert result.version == "1.0"
 
 
 def test_already_installed_raises(monkeypatch, tmp_path):

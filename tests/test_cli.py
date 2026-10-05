@@ -437,6 +437,49 @@ def test_info_dual_use_notice(monkeypatch, tmp_path):
     assert "Dual-use tool. See the responsible use notice in the README." in result.output
 
 
+def test_info_shows_requires_python(monkeypatch, tmp_path):
+    tools = [
+        {
+            "name": "oldtool",
+            "display_name": "Old Tool",
+            "description": "Needs an older Python",
+            "install": {"method": "pip", "package": "oldtool"},
+            "entrypoint": {"command": "oldtool"},
+            "requires_python": "<3.13",
+        }
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+    monkeypatch.setattr("sys.version_info", (3, 14, 4, "final", 0))
+
+    result = runner.invoke(app, ["info", "oldtool"])
+    assert result.exit_code == 0
+    assert "Requires Python: <3.13" in result.output
+    assert "warning: oldtool requires Python <3.13" in result.output
+    assert "you are running 3.14.4" in result.output
+
+
+def test_info_compatible_python_has_no_warning(monkeypatch, tmp_path):
+    tools = [
+        {
+            "name": "oldtool",
+            "display_name": "Old Tool",
+            "description": "Needs an older Python",
+            "install": {"method": "pip", "package": "oldtool"},
+            "entrypoint": {"command": "oldtool"},
+            "requires_python": "<3.13",
+        }
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+    monkeypatch.setattr("sys.version_info", (3, 12, 14, "final", 0))
+
+    result = runner.invoke(app, ["info", "oldtool"])
+    assert result.exit_code == 0
+    assert "Requires Python: <3.13" in result.output
+    assert "warning:" not in result.output
+
+
 def test_broken_registry_error(monkeypatch, tmp_path):
     reg = tmp_path / "bad.yaml"
     reg.write_text("invalid: yaml: [")
@@ -604,6 +647,40 @@ def test_install_one_failure_continues_and_exits_1(monkeypatch, tmp_path):
     assert "installed goodtool" in result.output
     assert "error: badtool" in result.output
     assert "1 installed, 0 skipped, 1 failed" in result.output
+
+
+def test_install_refuses_incompatible_python(monkeypatch, tmp_path):
+    """install fails early with a clear message instead of running pip."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.version_info", (3, 14, 4, "final", 0))
+    tools = [
+        {
+            "name": "oldtool",
+            "display_name": "Old Tool",
+            "description": "Needs an older Python",
+            "install": {"method": "pip", "package": "oldtool"},
+            "entrypoint": {"command": "oldtool"},
+            "capabilities": [],
+            "requires_python": "<3.13",
+        }
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+    runner.invoke(app, ["init", "--yes"])
+
+    with patch("otinstaller.cli.install_tool") as mock_install:
+        result = runner.invoke(app, ["install", "oldtool", "--yes"])
+
+    assert result.exit_code == 1
+    assert (
+        "error: oldtool requires Python <3.13 (you are running 3.14.4). "
+        "Install Python 3.12 and recreate your venv — see README."
+    ) in result.output
+    mock_install.assert_not_called()
+
+    from otinstaller.state import get_installed
+
+    assert get_installed("oldtool") is None
 
 
 def test_remove_single_tool(monkeypatch, tmp_path):
@@ -916,6 +993,78 @@ def test_doctor_python_version_problem(monkeypatch, tmp_path):
     assert result.exit_code == 1
     assert "[problem] python 3.14 is not supported" in result.output
     assert "this project targets 3.10-3.12" in result.output
+
+
+def test_doctor_flags_python_incompatible_tools(monkeypatch, tmp_path):
+    """doctor lists registered tools the running Python cannot install."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.platform", "linux")
+    monkeypatch.setattr("sys.version_info", (3, 14, 4, "final", 0))
+    monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/git" if x == "git" else None)
+    tools = [
+        {
+            "name": "oldtool",
+            "display_name": "Old Tool",
+            "description": "Needs an older Python",
+            "install": {"method": "pip", "package": "oldtool"},
+            "entrypoint": {"command": "oldtool"},
+            "requires_python": "<3.13",
+        },
+        {
+            "name": "newtool",
+            "display_name": "New Tool",
+            "description": "Works fine",
+            "install": {"method": "pip", "package": "newtool"},
+            "entrypoint": {"command": "newtool"},
+        },
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+
+    def mock_run(*args, **kwargs):
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr("subprocess.run", mock_run)
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 1
+    assert "[problem] tools incompatible with python 3.14: oldtool" in result.output
+    assert "newtool" not in result.output.split("tools incompatible with python 3.14")[1]
+
+
+def test_doctor_no_incompatible_tools_on_supported_python(monkeypatch, tmp_path):
+    """doctor stays quiet about tool constraints when they are all satisfied."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.platform", "linux")
+    monkeypatch.setattr("sys.version_info", (3, 12, 14, "final", 0))
+    monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/git" if x == "git" else None)
+    tools = [
+        {
+            "name": "oldtool",
+            "display_name": "Old Tool",
+            "description": "Needs an older Python",
+            "install": {"method": "pip", "package": "oldtool"},
+            "entrypoint": {"command": "oldtool"},
+            "requires_python": "<3.13",
+        },
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+
+    def mock_run(*args, **kwargs):
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr("subprocess.run", mock_run)
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "tools incompatible" not in result.output
 
 
 def test_doctor_git_missing_debian(monkeypatch, tmp_path):

@@ -3,6 +3,7 @@
 from otinstaller.installer.core import (
     AlreadyInstalled,
     InstallError,
+    PythonVersionError,
     install_tool,
     remove_tool,
     safe_rmtree,
@@ -11,6 +12,7 @@ from otinstaller.installer.core import (
 __all__ = [
     "InstallError",
     "AlreadyInstalled",
+    "PythonVersionError",
     "install_tool",
     "remove_tool",
     "safe_rmtree",
