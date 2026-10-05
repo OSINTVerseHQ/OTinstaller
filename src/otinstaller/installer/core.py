@@ -10,6 +10,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from otinstaller.compat import incompatibility
 from otinstaller.config import ensure_dir, get_logs_dir, get_tools_dir, tool_dir
 from otinstaller.installer.git_install import install_git
 from otinstaller.installer.pip_install import install_pip
@@ -27,6 +28,12 @@ from otinstaller.state import (
 
 class AlreadyInstalled(InstallError):
     """Raised when trying to install a tool that is already installed."""
+
+    pass
+
+
+class PythonVersionError(InstallError):
+    """Raised when the running Python does not satisfy the tool's requires_python."""
 
     pass
 
@@ -141,6 +148,11 @@ def install_tool(
     stream: bool = False,
 ) -> InstalledTool:
     """Install a tool into its own virtualenv."""
+    # Refuse before touching the filesystem or running pip when this Python cannot run the tool.
+    problem = incompatibility(tool)
+    if problem:
+        raise PythonVersionError(problem)
+
     # Check if already installed
     existing = get_installed(tool.name)
     if existing and not force:

@@ -16,6 +16,7 @@ from rich.live import Live
 from rich.table import Table
 
 from otinstaller import __version__
+from otinstaller.compat import incompatibility
 from otinstaller.config import (
     ensure_dir,
     get_distro,
@@ -32,6 +33,7 @@ from otinstaller.extract import extract_from_files
 from otinstaller.installer import (
     AlreadyInstalled,
     InstallError,
+    PythonVersionError,
     install_tool,
     remove_tool,
 )
@@ -330,6 +332,12 @@ def _show_tool_info(
     else:
         lines.append("API keys: none")
 
+    if tool.requires_python:
+        lines.append(f"Requires Python: {tool.requires_python}")
+        problem = incompatibility(tool)
+        if problem:
+            lines.append(f"warning: {problem}")
+
     # Check installed version
     installed = get_installed(tool.name)
     if installed:
@@ -533,6 +541,12 @@ def info(
     else:
         lines.append("Input types: none")
 
+    if tool.requires_python:
+        lines.append(f"Requires Python: {tool.requires_python}")
+        problem = incompatibility(tool)
+        if problem:
+            lines.append(f"warning: {problem}")
+
     if "dual-use" in tool.capabilities:
         lines.append("Dual-use tool. See the responsible use notice in the README.")
 
@@ -602,6 +616,35 @@ def install(
                     typer.echo(err, err=True)
             raise typer.Exit(code=1)
 
+    # Refuse tools this Python cannot run before prompting or installing anything.
+    incompatible = []
+    compatible_tools = []
+    for tool in tools:
+        problem = incompatibility(tool)
+        if problem:
+            incompatible.append((tool, problem))
+            if not json_output:
+                typer.echo(f"error: {problem}", err=True)
+        else:
+            compatible_tools.append(tool)
+    tools = compatible_tools
+    if not tools:
+        if json_output:
+            typer.echo(
+                json.dumps(
+                    {
+                        "installed": 0,
+                        "skipped": 0,
+                        "failed": len(incompatible),
+                        "results": [
+                            {"tool": tool.name, "status": "failed", "error": msg}
+                            for tool, msg in incompatible
+                        ],
+                    }
+                )
+            )
+        raise typer.Exit(code=1)
+
     if all_tools:
         # Show disclaimer for --all
         needs_config_count = sum(1 for t in tools_registry if t.needs_config)
@@ -654,9 +697,9 @@ def install(
     # Install
     installed_count = 0
     skipped_count = 0
-    failed_count = 0
+    failed_count = len(incompatible)
     console = _make_console(no_color)
-    results = []
+    results = [{"tool": tool.name, "status": "failed", "error": msg} for tool, msg in incompatible]
 
     for tool in tools:
         try:
@@ -689,6 +732,12 @@ def install(
             else:
                 typer.echo(f"{tool.name} is already installed (use --force to reinstall)")
             skipped_count += 1
+        except PythonVersionError as e:
+            if json_output:
+                results.append({"tool": tool.name, "status": "failed", "error": str(e)})
+            else:
+                typer.echo(f"error: {e}")
+            failed_count += 1
         except InstallError as e:
             if json_output:
                 results.append({"tool": tool.name, "status": "failed", "error": str(e)})
@@ -2529,6 +2578,29 @@ def doctor(
                 "check": "home_writable",
                 "status": "problem",
                 "message": "home directory not writable",
+            }
+        )
+        problems += 1
+
+    # 7. Registered tools whose requires_python excludes the running Python
+    try:
+        incompatible_tools = sorted(
+            tool.name
+            for tool in load_registry(default_registry_path())
+            if incompatibility(tool) is not None
+        )
+    except RegistryError:
+        incompatible_tools = []
+
+    if incompatible_tools:
+        checks.append(
+            {
+                "check": "tool_python_compat",
+                "status": "problem",
+                "message": (
+                    f"tools incompatible with python {major}.{minor}: "
+                    f"{', '.join(incompatible_tools)}"
+                ),
             }
         )
         problems += 1
