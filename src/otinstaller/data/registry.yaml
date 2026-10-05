@@ -1554,6 +1554,7 @@ tools:
   license: MIT
   stars: 1122
   tier: community
+  requires_python: '<3.13'
   install:
     method: pip
     package: auto-archiver
@@ -1669,6 +1670,7 @@ tools:
   license: MIT
   stars: 0
   tier: community
+  requires_python: '<3.13'
   install:
     method: pip
     package: telepathy

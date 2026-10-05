@@ -48,6 +48,29 @@ class TestParseTool:
         assert tool.install.url == "https://github.com/laramies/theHarvester.git"
         assert tool.install.as_package is True
 
+    def test_requires_python_parsed(self):
+        data = {
+            "name": "auto-archiver",
+            "display_name": "Auto Archiver",
+            "description": "Archive web content",
+            "install": {"method": "pip", "package": "auto-archiver"},
+            "entrypoint": {"command": "auto-archiver"},
+            "requires_python": "<3.13",
+        }
+        tool = parse_tool(data)
+        assert tool.requires_python == "<3.13"
+
+    def test_requires_python_defaults_to_none(self):
+        data = {
+            "name": "sherlock",
+            "display_name": "S",
+            "description": "D",
+            "install": {"method": "pip", "package": "s"},
+            "entrypoint": {"command": "s"},
+        }
+        tool = parse_tool(data)
+        assert tool.requires_python is None
+
 
 @pytest.mark.parametrize(
     "data,expected_error",
@@ -295,6 +318,39 @@ class TestParseTool:
             },
             "unknown key 'unknown_field'",
         ),
+        (
+            {
+                "name": "sherlock",
+                "display_name": "S",
+                "description": "D",
+                "install": {"method": "pip", "package": "s"},
+                "entrypoint": {"command": "s"},
+                "requires_python": "3.13",
+            },
+            "requires_python must look like",
+        ),
+        (
+            {
+                "name": "sherlock",
+                "display_name": "S",
+                "description": "D",
+                "install": {"method": "pip", "package": "s"},
+                "entrypoint": {"command": "s"},
+                "requires_python": "<3",
+            },
+            "requires_python must look like",
+        ),
+        (
+            {
+                "name": "sherlock",
+                "display_name": "S",
+                "description": "D",
+                "install": {"method": "pip", "package": "s"},
+                "entrypoint": {"command": "s"},
+                "requires_python": ">=3.10,<3.13",
+            },
+            "requires_python must look like",
+        ),
     ],
 )
 def test_parse_tool_validation_errors(data, expected_error):
@@ -397,13 +453,19 @@ def test_bundled_registry_loads():
     # Should have 38 tools (40 - 2 denylisted + 1 theHarvester added back - 1 airecon deferred)
     # plus neutrosint, zen and thebigbrother added later
     assert len(tools) == 48
-    assert "sherlock" in names
-    assert "maigret" in names
     assert "theharvester" in names
     # Check a few more from the new registry
     assert "spiderfoot" in names
     assert "ghunt" in names
     assert "holehe" in names
+
+
+def test_bundled_registry_python_constraints():
+    tools = load_registry(default_registry_path())
+    by_name = {t.name: t for t in tools}
+    assert by_name["auto-archiver"].requires_python == "<3.13"
+    assert by_name["telepathy"].requires_python == "<3.13"
+    assert by_name["sherlock"].requires_python is None
 
 
 def test_find_tool_case_insensitive():

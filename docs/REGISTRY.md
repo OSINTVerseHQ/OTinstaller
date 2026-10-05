@@ -23,6 +23,7 @@ The bundled registry ships with 40 verified tools. See docs/TAGGING.md for how c
 | api_keys | object | no | Required and optional API key names |
 | needs_config | boolean | no | Whether tool needs extra config (default: false) |
 | resume_flag | string | no | Flag to pass for resume support |
+| requires_python | string | no | Version specifier the running Python must satisfy, e.g. `"<3.13"`. Install refuses early when it does not match |
 | example | string | no | Relative path to sample output file |
 | verified | object | no | Verification info, see below |
 | accepts | list[string] | no | Target types this tool accepts (see below) |
