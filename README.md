@@ -18,6 +18,24 @@ sudo apt install python3-venv git
 
 Note: Some managed tools do not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. If you encounter install failures on newer Python versions, try running otinstaller in a Python 3.12 virtualenv.
 
+### Ubuntu 26.04 LTS and other systems with Python 3.14
+
+Ubuntu 26.04 LTS ships Python 3.14 by default, and other distributions now ship
+Python 3.14 too. otinstaller and some of its managed tools require Python
+3.10–3.12, so on these systems install Python 3.12 explicitly and run
+otinstaller inside a virtualenv made with it:
+
+```bash
+sudo apt install python3.12 python3.12-venv
+python3.12 -m venv ~/.otinstaller-venv
+source ~/.otinstaller-venv/bin/activate
+pip install otinstaller
+```
+
+Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before
+using otinstaller. `otinstaller doctor` prints the Python version it is running
+under and flags any registered tool that needs a different one.
+
 ## Install OTinstaller
 
 These commands install otinstaller itself. Run them in this repository's folder. A virtualenv is a private Python folder, so this install does not change the Python that came with the system.
