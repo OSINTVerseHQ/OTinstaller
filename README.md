@@ -20,21 +20,28 @@ Note: Some managed tools do not yet support Python 3.13+. The test matrix covers
 
 ### Ubuntu 26.04 LTS and other systems with Python 3.14
 
-Ubuntu 26.04 LTS ships Python 3.14 by default, and other distributions now ship
-Python 3.14 too. otinstaller and some of its managed tools require Python
-3.10–3.12, so on these systems install Python 3.12 explicitly and run
-otinstaller inside a virtualenv made with it:
+Ubuntu 26.04 LTS ships Python 3.14 by default. The apt repositories do not
+provide python3.12, so the apt-based install instructions above will fail on
+this release. Use uv to create a Python 3.12 virtualenv and install otinstaller
+into it:
 
 ```bash
-sudo apt install python3.12 python3.12-venv
-python3.12 -m venv ~/.otinstaller-venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+uv venv --python 3.12 ~/.otinstaller-venv
 source ~/.otinstaller-venv/bin/activate
-pip install otinstaller
+uv pip install otinstaller
 ```
 
-Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before
-using otinstaller. `otinstaller doctor` prints the Python version it is running
-under and flags any registered tool that needs a different one.
+A uv-created virtualenv has no pip, so the install command is `uv pip install
+otinstaller`. Run `source ~/.otinstaller-venv/bin/activate` again in any new
+terminal before using otinstaller. `otinstaller doctor` prints the Python
+version it is running under and flags any registered tool that needs a
+different one.
+
+Note: The apt route above works on distributions whose repositories provide
+python3.12 (for example, Ubuntu 22.04 and 24.04). Ubuntu 26.04 is the only
+newly confirmed distribution for the uv method.
 
 ## Install OTinstaller
 
