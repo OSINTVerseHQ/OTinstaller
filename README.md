@@ -4,26 +4,21 @@ Install, run, update, and remove open-source command line tools by name.
 
 You pick a tool from a list. OTinstaller downloads it into its own folder, runs it, and saves the output. You do not learn a different install method for each tool.
 
-Status: early development. Not published to PyPI yet.
+otinstaller is published on PyPI (version 0.0.1).
 
 ## What you need
 
 A Linux machine. Tested on Ubuntu 22.04 and 24.04, Debian 12, and Arch Linux. Kali Linux is checked by hand before a release.
 
-Python 3.10 or newer, git, and the `venv` module. On Debian, Ubuntu and Kali, install that module with:
+Python 3.10 to 3.12, git, and the `venv` module. On Debian, Ubuntu and Kali, install that module with:
 
 ```bash
 sudo apt install python3-venv git
 ```
 
-Note: Some managed tools do not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. If you encounter install failures on newer Python versions, try running otinstaller in a Python 3.12 virtualenv.
+### Ubuntu 26.04 LTS and other systems with Python 3.13+
 
-### Ubuntu 26.04 LTS and other systems with Python 3.14
-
-Ubuntu 26.04 LTS ships Python 3.14 by default. The apt repositories do not
-provide python3.12, so the apt-based install instructions above will fail on
-this release. Use uv to create a Python 3.12 virtualenv and install otinstaller
-into it:
+Ubuntu 26.04 LTS ships Python 3.14 by default, and other distributions now ship Python 3.13+ too. otinstaller and some of its managed tools require Python 3.10–3.12, so on these systems install Python 3.12 explicitly and run otinstaller inside a virtualenv made with it:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -33,19 +28,36 @@ source ~/.otinstaller-venv/bin/activate
 uv pip install otinstaller
 ```
 
-A uv-created virtualenv has no pip, so the install command is `uv pip install
-otinstaller`. Run `source ~/.otinstaller-venv/bin/activate` again in any new
-terminal before using otinstaller. `otinstaller doctor` prints the Python
-version it is running under and flags any registered tool that needs a
-different one.
+A uv-created virtualenv has no pip, so the install command is `uv pip install otinstaller`. Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before using otinstaller. `otinstaller doctor` prints the Python version it is running under and flags any registered tool that needs a different one.
 
-Note: The apt route above works on distributions whose repositories provide
-python3.12 (for example, Ubuntu 22.04 and 24.04). Ubuntu 26.04 is the only
-newly confirmed distribution for the uv method.
+The system Python on Ubuntu 22.04 and 24.04 already works. The uv method was tested on Ubuntu 26.04 only.
+
+### Python version caveats
+
+Some managed tools do not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. Known affected tools:
+
+- `auto-archiver`: requires Python <3.13 (dependency `pdqhash` needs a C++ compiler, no wheel for 3.13+)
+- `telepathy`: requires Python <3.13 (dependency `googletrans`/`httpx` uses removed `cgi` module)
+
+If you encounter install failures on Python 3.13+, run otinstaller in a Python 3.12 virtualenv.
 
 ## Install OTinstaller
 
-These commands install otinstaller itself. Run them in this repository's folder. A virtualenv is a private Python folder, so this install does not change the Python that came with the system.
+For system-wide installation, use `pipx install otinstaller`. This provides the `otinstaller` and `ot` commands on your PATH without a virtualenv.
+
+Alternatively, create a virtualenv and install from PyPI:
+
+```bash
+python3 -m venv ~/.otinstaller-venv
+source ~/.otinstaller-venv/bin/activate
+pip install otinstaller
+```
+
+Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before using otinstaller.
+
+### Install from source
+
+To install from this repository (for development):
 
 ```bash
 python3 -m venv .venv
@@ -53,9 +65,7 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-`otinstaller` should now be on your path. A new terminal does not keep that. Run `source .venv/bin/activate` again from this folder if the next command says `otinstaller: command not found`.
-
-For system-wide installation, use `pipx install otinstaller` (or `pipx install .` from this directory). This provides the `otinstaller` and `ot` commands on your PATH without a virtualenv.
+Run `source .venv/bin/activate` again from this folder in any new terminal if the next command says `otinstaller: command not found`.
 
 Check the machine with:
 
@@ -127,9 +137,12 @@ Command reference:
 
 - `otinstaller init` — Initialize config and directories
 - `otinstaller install <tool>...` — Install tools
+- `otinstaller install --all` — Install all available tools from the registry
 - `otinstaller remove <tool>...` / `--all` — Remove tools
 - `otinstaller run <tool>... -- <args>` — Run tools
 - `otinstaller run --all u:...` — Run all matching tools
+- `otinstaller run --live` — Show a live status table for parallel runs
+- `otinstaller run --case <name>` — Group runs under a named case
 - `otinstaller info <tool>` — Show tool details
 - `otinstaller list` / `--installed` — List tools
 - `otinstaller search <query>` — Search tools
@@ -140,12 +153,18 @@ Command reference:
 - `otinstaller keys check` — Check API keys
 - `otinstaller resume` — Resume interrupted jobs
 - `otinstaller doctor` — Run diagnostics
+- `otinstaller about` — Show the about banner with credits
+- `otinstaller extract <target>` — Extract indicators from saved result files
+- `otinstaller diff <tool> <target>` — Compare two most recent runs of the same tool against the same target
+- `otinstaller playbook [name] [target]` — Run a playbook
+- `otinstaller playbook --list` — List available playbooks
+- `otinstaller <tool>` — Show tool details (same as `info <tool>`)
 
 For AI agents: see `llms.txt` at the repository root.
 
 ## Results
 
-Results are saved automatically to `./results/<tool>/<target>/` using the filename pattern `<YYYYmmdd-HHMMSS>_<tool>_<target>_<runid>.<ext>` plus a `.meta.json` sidecar. The results directory can be overridden with `--output` or `OTINSTALLER_RESULTS_DIR`.
+Results are saved automatically to `./results/<tool>/<target>/` using the filename pattern `<YYYYmmdd-HHMMSS>_<tool>_<target>_<runid>.<ext>` plus a `.meta.json` sidecar. The results directory can be overridden with `--output` or `OTINSTALLER_RESULTS_DIR`. Results are saved in `./results/` in the folder where the command is run, so run it from the same folder each time.
 
 Example:
 
@@ -174,15 +193,6 @@ Finished jobs are skipped on resume (their marker is removed on completion). Par
 Some tools are tagged `dual-use` in the registry. They can be used for legitimate research but also for misuse. Installing a dual-use tool prints a notice and requires confirmation unless `--yes` is given.
 
 The global responsible-use notice is accepted on first `otinstaller init`. You can re-read it with `otinstaller init` any time.
-
-## Python version caveats
-
-Some managed tools do not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. Known affected tools:
-
-- `auto-archiver`: requires Python <3.13 (dependency `pdqhash` needs a C++ compiler, no wheel for 3.13+)
-- `telepathy`: requires Python <3.13 (dependency `googletrans`/`httpx` uses removed `cgi` module)
-
-If you encounter install failures on Python 3.13+, run otinstaller in a Python 3.12 virtualenv.
 
 ## License
 
