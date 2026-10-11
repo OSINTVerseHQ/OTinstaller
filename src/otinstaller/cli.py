@@ -2448,6 +2448,17 @@ def playbook(
     tools = [find_tool(tools_registry, t) for t in pb.get("tools", [])]
     tools = [t for t in tools if t]
 
+    # Validate each tool supports the target type
+    detected_type = detect_target_type(target) if target else None
+    if detected_type:
+        for tool in tools:
+            if detected_type not in tool.accepts:
+                typer.echo(
+                    f"error: tool '{tool.name}' in playbook '{name}' does not support '{detected_type}' targets",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+
     case = pb.get("case") or f"playbook-{name}"
 
     if not json_output:
