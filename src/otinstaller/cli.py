@@ -52,7 +52,7 @@ from otinstaller.registry import (
     search_tools,
     suggest_names,
 )
-from otinstaller.results import RunMeta, write_meta
+from otinstaller.results import RunMeta, write_meta, results_paths
 from otinstaller.runner import run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 
@@ -1138,6 +1138,9 @@ def run(
         console = _make_console(no_color)
         use_spinner = not no_color and sys.stdout.isatty()
 
+        # Compute expected output path for interrupt message
+        expected_output_path, _ = results_paths(name, run_target, case)
+
         try:
             if use_spinner:
                 with console.status(f"running {name}..."):
@@ -1194,7 +1197,7 @@ def run(
             if "meta" in locals() and hasattr(meta, "output_path"):
                 msg += meta.output_path
             else:
-                msg += "unknown"
+                msg += expected_output_path
             typer.echo(msg, err=True)
             raise typer.Exit(code=130) from None
 
