@@ -535,6 +535,8 @@ tools:
     method: pip
     package: aliens_eye
     version: 2.5.0
+    extra_packages:
+    - "selectolax<0.4"
   entrypoint:
     command: aliens_eye
   smoke_args:
@@ -559,7 +561,12 @@ tools:
   accepts:
   - username
   input_types:
-    u: --username
+    u: ''
+  default_args:
+  - --level
+  - basic
+  - --json-stdout
+  - --only-found
 - name: paramspider
   display_name: Paramspider
   description: Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further probing.
