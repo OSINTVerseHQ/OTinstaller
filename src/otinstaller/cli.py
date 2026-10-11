@@ -16,6 +16,7 @@ from rich.live import Live
 from rich.table import Table
 
 from otinstaller import __version__
+from otinstaller.banner import banner_enabled, render_banner
 from otinstaller.compat import incompatibility
 from otinstaller.config import (
     ensure_dir,
@@ -124,7 +125,7 @@ class ToolAwareGroup(typer.core.TyperGroup):
 app = typer.Typer(
     cls=ToolAwareGroup,
     add_completion=False,
-    no_args_is_help=True,
+    invoke_without_command=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
 
@@ -135,9 +136,11 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-def _print_about() -> None:
+def _print_about(no_color: bool = False) -> None:
     """Print the about banner with credits."""
-    console = Console()
+    console = _make_console(no_color)
+    if banner_enabled():
+        render_banner(console, color=not no_color)
     console.print()
     console.print("[bold]OTinstaller[/bold]")
     console.print("Install, run, update, and remove open-source command line tools by name.")
@@ -153,11 +156,12 @@ def about(
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
 ):
     """Show the about banner with credits."""
-    _print_about()
+    _print_about(no_color)
 
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     version: Annotated[
         bool,
         typer.Option(
@@ -167,7 +171,12 @@ def main(
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose output")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
 ):
-    pass
+    if ctx.invoked_subcommand is not None:
+        return
+    if banner_enabled():
+        render_banner(_make_console(no_color), color=not no_color)
+    typer.echo(ctx.get_help())
+    raise typer.Exit()
 
 
 def _load_registry(verbose: bool) -> list:
@@ -2023,6 +2032,9 @@ def init(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ):
     """Initialize configuration and directories."""
+    if banner_enabled(json_output):
+        render_banner(_make_console(no_color), color=not no_color)
+
     # Create directories
     ensure_dir(get_home())
     ensure_dir(get_tools_dir())
