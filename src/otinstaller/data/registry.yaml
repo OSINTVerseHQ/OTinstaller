@@ -76,7 +76,7 @@ tools:
   install:
     method: git
     url: https://github.com/laramies/theHarvester.git
-    ref: 4.11.1
+    ref: fd832dee7936458a4f6e2029bf37ba6797228676
     as_package: true
   entrypoint:
     command: theHarvester
@@ -112,6 +112,7 @@ tools:
   install:
     method: git
     url: https://github.com/smicallef/spiderfoot.git
+    ref: 0f815a203afebf05c98b605dba5cf0475a0ee5fd
     requirements: requirements.txt
   entrypoint:
     script: sf.py
@@ -576,6 +577,7 @@ tools:
   install:
     method: git
     url: https://github.com/devanshbatham/ParamSpider.git
+    ref: c44bdaae54789b237028e309b603d1aa5ad52e5e
     as_package: true
   entrypoint:
     command: paramspider
@@ -1174,6 +1176,7 @@ tools:
   install:
     method: git
     url: https://github.com/Zarcolio/sitedorks.git
+    ref: ce6421a963d50c3b18128052703274552d284d94
     requirements: requirements.txt
   entrypoint:
     script: sitedorks.py
@@ -1245,6 +1248,7 @@ tools:
   install:
     method: git
     url: https://github.com/osintbrazuca/osint-brazuca-regex.git
+    ref: 5ec05893330bc90314796787bbf17a97301f9404
     requirements: requirements.txt
   entrypoint:
     script: osint_regex_scan.py
@@ -1279,6 +1283,7 @@ tools:
   install:
     method: git
     url: https://github.com/thewhiteh4t/FinalRecon.git
+    ref: b5db3a46921195bec643065c560e19741852957c
     requirements: requirements.txt
   entrypoint:
     script: finalrecon.py
@@ -1391,6 +1396,7 @@ tools:
   install:
     method: git
     url: https://github.com/UnaPibaGeek/ctfr.git
+    ref: 6c7fecdc6346c4f5322049e38f415d5bddaa420d
     requirements: requirements.txt
   entrypoint:
     script: ctfr.py
@@ -1425,6 +1431,7 @@ tools:
   install:
     method: git
     url: https://github.com/p1ngul1n0/blackbird.git
+    ref: b45505080ef51bb3ef52dc29879ee6bef31e5b94
     requirements: requirements.txt
   entrypoint:
     script: blackbird.py
@@ -1659,6 +1666,7 @@ tools:
   install:
     method: git
     url: https://github.com/Kr0wZ/NeutrOSINT.git
+    ref: a51a133444c366ea3a60a8c400a3624625d79e6d
     as_package: true
   entrypoint:
     command: neutrosint
@@ -1693,6 +1701,7 @@ tools:
   install:
     method: git
     url: https://github.com/s0md3v/Zen.git
+    ref: b9018b4b74eb0cb64d5a61ff00cdd413cf5d7733
     requirements: requirements.txt
   entrypoint:
     script: zen.py
@@ -1727,6 +1736,7 @@ tools:
   install:
     method: git
     url: https://github.com/chadi0x/TheBigBrother.git
+    ref: 96e03c34d415aaeaddd66d54bb2e2359d4b320fc
     as_package: true
   entrypoint:
     script: the_big_brother/__main__.py
