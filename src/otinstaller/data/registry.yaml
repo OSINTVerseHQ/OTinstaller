@@ -63,11 +63,11 @@ tools:
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
-  - username
   - email
   input_types:
-    u: --username
-    e: --email
+    e: ''
+  default_args:
+  - email
   example: examples/ghunt.txt
 - name: theharvester
   display_name: theHarvester
@@ -114,7 +114,7 @@ tools:
     url: https://github.com/smicallef/spiderfoot.git
     requirements: requirements.txt
   entrypoint:
-    script: sfcli.py
+    script: sf.py
   smoke_args:
   - --help
   capabilities:
@@ -147,9 +147,12 @@ tools:
   - username
   - email
   input_types:
-    d: --domain
-    u: --username
+    d: -s
+    u: -u
     e: --email
+  default_args:
+  - -u
+  - passive
   example: examples/spiderfoot.txt
 - name: instaloader
   display_name: Instaloader
@@ -988,6 +991,7 @@ tools:
   api_keys:
     required: []
     optional: []
+  needs_config: true
   verified:
     date: '2026-09-24'
     version: 2.0.1
@@ -996,8 +1000,6 @@ tools:
   accepts:
   - phone
   - name
-  input_types:
-    p: --phone
 - name: instagram-monitor
   display_name: Instagram Monitor
   description: Track Instagram users' activities, profile changes and capture content with beautiful dashboards and instant notifications.
@@ -1032,7 +1034,7 @@ tools:
   accepts:
   - username
   input_types:
-    u: --username
+    u: ''
 - name: mailaccess
   display_name: Mailaccess
   description: Free email OSINT tool, 2500+ platforms, identity clustering, breach detection.
@@ -1292,7 +1294,6 @@ tools:
   - email
   input_types:
     u: --username
-    e: --email
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
   description: Repositrio criado com intuito de reunir expresses regulares dentro do contexto Brasil.
