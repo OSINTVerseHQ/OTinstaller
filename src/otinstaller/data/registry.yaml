@@ -1666,7 +1666,7 @@ tools:
 - name: telepathy
   display_name: Telepathy
   description: OSINT toolkit for investigating Telegram chats and accounts. Requires Python <3.13 (dependency googletrans/httpx uses removed cgi module).
-  repo: telepathy/telepathy
+  repo: jordanwildon/Telepathy
   license: MIT
   stars: 0
   tier: community
