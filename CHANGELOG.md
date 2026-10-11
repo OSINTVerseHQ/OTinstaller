@@ -7,35 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-10-11
+
 ### Added
-- Typed input prefixes: u: (username), e: (email), p: (phone), d: (domain), url: (URL), q: (query), geo: (coordinates), 	g: (Telegram channel)
-- --all mode for 
-un command: run every installed tool supporting the given input types (-a short form)
-- --include-credentialed flag for --all mode to include tools requiring API credentials
-- check-updates command: read-only check for available updates
-- --tools option for update and check-updates commands (comma-separated tool names)
-- --json output support for all commands
-- --yes / -y flag to skip confirmation prompts on all commands
-- Stable exit codes: 0=success, 1=error, 2=invalid input, 130=interrupted
-- Non-interactive mode detection (CI-friendly)
-- ot command alias alongside otinstaller
-- otinstaller <toolname> bare command shows tool info (same as info)
-- New tools: Blackbird, Telegram Phone Number Checker, Auto Archiver, edgar-tool, instagram-location-search, Telepathy
-- 
-eeds_config field in registry for tools requiring configuration
-- 
-equires_credentials concept for tools with mandatory API keys
+- Startup banner for init, about, and a bare invocation
+- `requires_python` on registry entries, with install failing early when the interpreter is too old
+- `long_running` flag so whatsapp-osint and instagram-monitor are left out of `--all` and auto
 
 ### Changed
-- All commands now support --json output
-- All commands respect --yes / -y and non-interactive stdin
-- update command refactored to use shared check logic
-- Registry schema extended with input_types, 
-eeds_config
+- README rewritten for the PyPI page, with absolute links and project URLs
+- pyyaml pinned to 6.0.3 and ruff pinned to 0.16.10
 
 ### Fixed
-- Tool name collision handling (bare tool name vs subcommand)
-- Input type validation for --all mode
+- Registry input types and entrypoints for ghunt, theharvester, bbot, linkook, spiderfoot, ignorant, aliens-eye, telepathy, and neutrosint
+- Git-installed tools pinned to full commit SHAs
+- Removed the fabricated ghunt example output
+- Interrupted runs print the real output path
+- Result folders use the typed input value when no other target name is available
 
 ## [0.0.1] - 2026-09-29
 
@@ -46,7 +34,20 @@ eeds_config
 - Result storage with metadata and SHA256
 - API key management via ~/.otinstaller/.env
 - Responsible use notice on first run
-- Auto-detect target type with uto command
+- Auto-detect target type with the auto command
 - Example output viewer
 - Resume interrupted jobs
 - Doctor diagnostics
+- Typed input prefixes: u: (username), e: (email), p: (phone), d: (domain), url: (URL), q: (query), geo: (coordinates), tg: (Telegram channel)
+- `--all` mode for the run command
+- `--include-credentialed` flag for `--all`
+- check-updates command
+- `--tools` option for update and check-updates
+- `--json` output and `--yes` / `-y` on commands
+- Stable exit codes: 0 success, 1 error, 2 invalid input, 130 interrupted
+- `ot` command alias
+- Tools added for that release: Blackbird, Telegram Phone Number Checker, Auto Archiver, edgar-tool, instagram-location-search, Telepathy
+
+### Fixed
+- Tool name collision between a bare tool name and a subcommand
+- Input type validation for `--all`
