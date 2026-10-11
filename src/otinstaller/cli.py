@@ -1059,6 +1059,9 @@ def run(
             t = find_tool(tools_registry, name)
             if not t:
                 continue
+            # Skip long-running tools in --all mode
+            if t.long_running:
+                continue
             # Check if tool supports any of the typed inputs
             supports_any = any(prefix in t.input_types for prefix in typed_inputs)
             if not supports_any:
@@ -1894,7 +1897,7 @@ def auto(
     # We need Tool objects from the registry (with .entrypoint), not InstalledTool objects
     # Map installed tool names back to their full Tool objects from the registry
     installed_tool_names = set(installed_matching.keys())
-    tool_list = [t for t in matching_tools if t.name in installed_tool_names]
+    tool_list = [t for t in matching_tools if t.name in installed_tool_names and not t.long_running]
     roots = {t.name: get_tools_dir() / t.name for t in tool_list}
 
     try:

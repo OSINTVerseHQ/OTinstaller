@@ -97,6 +97,7 @@ class Tool:
     input_types: dict[str, str] = None
     requires_python: str | None = None
     default_args: tuple[str, ...] = ()
+    long_running: bool = False
 
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
@@ -315,6 +316,7 @@ def _validate_unknown_keys(data: dict, tool_name: str) -> None:
         "input_types",
         "requires_python",
         "default_args",
+        "long_running",
     }
     for key in data:
         if key not in known_keys:
@@ -392,6 +394,8 @@ def parse_tool(data: dict) -> Tool:
 
     default_args = tuple(data.get("default_args", []))
 
+    long_running = data.get("long_running", False)
+
     return Tool(
         name=data["name"],
         display_name=data["display_name"],
@@ -414,6 +418,7 @@ def parse_tool(data: dict) -> Tool:
         input_types=input_types or {},
         requires_python=requires_python,
         default_args=default_args,
+        long_running=long_running,
     )
 
 

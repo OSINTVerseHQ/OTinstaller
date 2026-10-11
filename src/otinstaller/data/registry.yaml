@@ -992,6 +992,7 @@ tools:
     required: []
     optional: []
   needs_config: true
+  long_running: true
   verified:
     date: '2026-09-24'
     version: 2.0.1
@@ -1026,6 +1027,7 @@ tools:
   api_keys:
     required: []
     optional: []
+  long_running: true
   verified:
     date: '2026-09-24'
     version: 4.0.2
