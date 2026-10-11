@@ -2453,10 +2453,11 @@ def playbook(
     if detected_type:
         for tool in tools:
             if detected_type not in tool.accepts:
-                typer.echo(
-                    f"error: tool '{tool.name}' in playbook '{name}' does not support '{detected_type}' targets",
-                    err=True,
+                msg = (
+                    f"error: tool '{tool.name}' in playbook '{name}' "
+                    f"does not support '{detected_type}' targets"
                 )
+                typer.echo(msg, err=True)
                 raise typer.Exit(code=2)
 
     case = pb.get("case") or f"playbook-{name}"
