@@ -52,7 +52,7 @@ from otinstaller.registry import (
     search_tools,
     suggest_names,
 )
-from otinstaller.results import RunMeta, write_meta, results_paths
+from otinstaller.results import RunMeta, results_paths, write_meta
 from otinstaller.runner import run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 

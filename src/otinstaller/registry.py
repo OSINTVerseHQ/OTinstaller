@@ -101,9 +101,14 @@ class Tool:
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 _PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-# Pip package spec regex: allows package name with optional version constraints (==, >=, <=, <, >, !=, ~=)
-# and optional extras [extra], and optional environment markers ; marker
-_PACKAGE_SPEC_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(\[[A-Za-z0-9,_-]*\])?([<>=!~][A-Za-z0-9.*+-]+(,[<>=!~][A-Za-z0-9.*+-]+)*)?(;.*)?$")
+# Pip package spec regex: allows package name with optional version constraints
+# (==, >=, <=, <, >, !=, ~), optional extras [extra], and env markers ; marker
+_PACKAGE_SPEC_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*"
+    r"(\[[A-Za-z0-9,_-]*\])?"
+    r"([<>=!~][A-Za-z0-9.*+-]+(,[<>=!~][A-Za-z0-9.*+-]+)*)?"
+    r"(;.*)?$"
+)
 _VERSION_RE = re.compile(r"^[0-9A-Za-z.!+-]+$")
 _GIT_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$")
 _REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -309,6 +314,7 @@ def _validate_unknown_keys(data: dict, tool_name: str) -> None:
         "accepts",
         "input_types",
         "requires_python",
+        "default_args",
     }
     for key in data:
         if key not in known_keys:
