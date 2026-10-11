@@ -2,7 +2,9 @@
 
 The registry is a YAML file with a top-level `tools` list. Each entry describes a command-line tool that otinstaller can install and run.
 
-The bundled registry ships with 40 verified tools. See docs/TAGGING.md for how capability, topic, and accepts tags were assigned.
+The bundled registry ships with 48 verified tools. See docs/TAGGING.md for how capability, topic, and accepts tags were assigned.
+
+The source of truth is `src/otinstaller/data/registry.yaml` (packaged with the wheel). The `registry/registry.yaml` file in the repository root is an empty template used by the pipeline to generate the bundled registry.
 
 ## Tool fields
 
