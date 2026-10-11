@@ -141,9 +141,10 @@ def _print_about(no_color: bool = False) -> None:
     console = _make_console(no_color)
     if banner_enabled():
         render_banner(console, color=not no_color)
-    console.print()
-    console.print("[bold]OTinstaller[/bold]")
-    console.print("Install, run, update, and remove open-source command line tools by name.")
+    else:
+        console.print()
+        console.print("[bold]OTinstaller[/bold]")
+        console.print("Install, run, update, and remove open-source command line tools by name.")
     console.print()
     console.print("[bold]Credits[/bold]")
     console.print("  Builder: [link=https://www.linkedin.com/in/sushantkoul07]Sushant Koul[/link]")
