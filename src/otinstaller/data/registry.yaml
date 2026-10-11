@@ -69,6 +69,7 @@ tools:
   default_args:
   - email
   example: examples/ghunt.txt
+  needs_config: true
 - name: theharvester
   display_name: theHarvester
   description: Find emails, subdomains and names for a domain
@@ -148,8 +149,6 @@ tools:
   - email
   input_types:
     d: -s
-    u: -u
-    e: --email
   default_args:
   - -u
   - passive
@@ -190,8 +189,7 @@ tools:
   - username
   - url
   input_types:
-    u: --username
-    url: --url
+    u: ''
 - name: sherlock
   display_name: Sherlock
   description: Hunt down social media accounts by username across social networks.
@@ -341,7 +339,7 @@ tools:
   - domain
   - ip
   input_types:
-    d: --domain
+    d: ''
 - name: h8mail
   display_name: H8Mail
   description: Email OSINT & Password breach hunting tool, locally or using premium services.
@@ -376,7 +374,7 @@ tools:
   accepts:
   - email
   input_types:
-    e: --email
+    e: -t
 - name: user-scanner
   display_name: User Scanner
   description: (2-in-1) Email & Username OSINT suite featuring native MCP support for deep data extraction just from a single Email/Username.
@@ -452,8 +450,7 @@ tools:
   - url
   - domain
   input_types:
-    url: --url
-    d: --domain
+    url: -u
 - name: toutatis
   display_name: Toutatis
   description: Toutatis is a tool that allows you to extract information from instagrams accounts such as e-mails, phone numbers and more.
@@ -489,7 +486,8 @@ tools:
   accepts:
   - phone
   input_types:
-    p: --phone
+    u: --username
+  needs_config: true
 - name: ivre
   display_name: Ivre
   description: Network recon framework.
@@ -526,8 +524,6 @@ tools:
   accepts:
   - domain
   - ip
-  input_types:
-    d: --domain
 - name: aliens-eye
   display_name: Aliens Eye
   description: Hunt down 840+ social media accounts using AI.
@@ -540,7 +536,7 @@ tools:
     package: aliens_eye
     version: 2.5.0
     extra_packages:
-    - "selectolax<0.4"
+    - selectolax<0.4
   entrypoint:
     command: aliens_eye
   smoke_args:
@@ -608,7 +604,6 @@ tools:
   - url
   input_types:
     d: --domain
-    url: --url
 - name: nexfil
   display_name: Nexfil
   description: OSINT tool for finding profiles by username.
@@ -641,7 +636,7 @@ tools:
   accepts:
   - username
   input_types:
-    u: --username
+    u: -u
 - name: yark
   display_name: Yark
   description: OSINT for YouTube made simple.
@@ -678,47 +673,6 @@ tools:
   - url
   - username
   - name
-  input_types:
-    url: --url
-    u: --username
-- name: cloud-enum
-  display_name: Cloud Enum
-  description: Multi-cloud OSINT tool.
-  repo: initstring/cloud_enum
-  license: MIT
-  stars: 2140
-  tier: community
-  install:
-    method: pip
-    package: cloud-enum
-    version: 0.1.0
-  entrypoint:
-    command: cloud_enum
-  smoke_args:
-  - --help
-  capabilities:
-  - domain-recon
-  - ip-recon
-  - subdomain-enum
-  - cloud
-  topics:
-  - cloud
-  - domain
-  - ip
-  - subdomain
-  api_keys:
-    required: []
-    optional: []
-  verified:
-    date: '2026-09-24'
-    version: 0.1.0
-    os: Ubuntu 26.04 LTS
-    python: 3.12.14
-  accepts:
-  - domain
-  - ip
-  input_types:
-    d: --domain
 - name: ignorant
   display_name: Ignorant
   description: ignorant allows you to check if a phone number is used on different sites like snapchat, instagram.
@@ -751,8 +705,7 @@ tools:
     python: 3.12.14
   accepts:
   - phone
-  input_types:
-    p: --phone
+  input_types: {}
 - name: socialscan
   display_name: Socialscan
   description: Python library for accurately querying username and email usage on online platforms.
@@ -827,10 +780,6 @@ tools:
   - domain
   - username
   - email
-  input_types:
-    d: --domain
-    u: --username
-    e: --email
 - name: onionsearch
   display_name: Onionsearch
   description: OnionSearch is a script that scrapes urls on different.
@@ -864,10 +813,10 @@ tools:
   accepts:
   - url
   input_types:
-    url: --url
+    q: ''
 - name: openosint
   display_name: Openosint
-  description: "AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes. Direct email/username scans work without ANTHROPIC_API_KEY. AI-REPL and MCP modes require ANTHROPIC_API_KEY (or --api-key). Other features need additional keys: SHODAN_API_KEY (shodan), VIRUSTOTAL_API_KEY (virustotal), CENSYS_API_ID + CENSYS_SECRET (censys), ABUSEIPDB_API_KEY (abuseipdb), IP2LOCATION_API_KEY (ip2location), BRIGHTDATA_API_KEY + BRIGHTDATA_SERP_ZONE/BRIGHTDATA_UNLOCKER_ZONE (Bright Data tools), OPENAI_API_KEY (OpenAI provider), OPENOSINT_PROXY_URL (proxy)."
+  description: 'AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes. Direct email/username scans work without ANTHROPIC_API_KEY. AI-REPL and MCP modes require ANTHROPIC_API_KEY (or --api-key). Other features need additional keys: SHODAN_API_KEY (shodan), VIRUSTOTAL_API_KEY (virustotal), CENSYS_API_ID + CENSYS_SECRET (censys), ABUSEIPDB_API_KEY (abuseipdb), IP2LOCATION_API_KEY (ip2location), BRIGHTDATA_API_KEY + BRIGHTDATA_SERP_ZONE/BRIGHTDATA_UNLOCKER_ZONE (Bright Data tools), OPENAI_API_KEY (OpenAI provider), OPENOSINT_PROXY_URL (proxy).'
   repo: OpenOSINT/OpenOSINT
   license: MIT
   stars: 1630
@@ -962,9 +911,6 @@ tools:
   - username
   - email
   - name
-  input_types:
-    u: --username
-    e: --email
 - name: whatsapp-osint
   display_name: Whatsapp Osint
   description: WhatsApp spy - logs online/offline events from ANYONE in the world.
@@ -1039,7 +985,7 @@ tools:
     u: ''
 - name: mailaccess
   display_name: Mailaccess
-  description: Free email OSINT tool, 2500+ platforms, identity clustering, breach detection.
+  description: 'Free email OSINT tool, 2500+ platforms, identity clustering, breach detection. BROKEN: crashes on --help (missing greenlet dependency), has placeholder URLs, unknown license.'
   repo: KatrielMoses/MailAccess
   license: unknown
   stars: 1449
@@ -1116,10 +1062,6 @@ tools:
   - ip
   - username
   - email
-  input_types:
-    d: --domain
-    u: --username
-    e: --email
 - name: sublist3r
   display_name: Sublist3r
   description: Fast subdomain enumeration tool using multiple search engines and certificate transparency logs.
@@ -1130,7 +1072,7 @@ tools:
   install:
     method: pip
     package: sublist3r
-    version: "1.0"
+    version: '1.0'
   entrypoint:
     command: sublist3r
   smoke_args:
@@ -1146,7 +1088,7 @@ tools:
     optional: []
   verified:
     date: '2026-09-30'
-    version: "1.0"
+    version: '1.0'
     os: Ubuntu 26.04 LTS
     python: 3.12.14
   accepts:
@@ -1190,7 +1132,6 @@ tools:
   - username
   input_types:
     url: --url
-    u: --username
 - name: dnsgen
   display_name: Dnsgen
   description: DNSGen is a powerful and flexible DNS name permutation tool designed for security researchers and penetration testers.
@@ -1223,7 +1164,7 @@ tools:
   accepts:
   - domain
   input_types:
-    d: --domain
+    d: ''
 - name: sitedorks
   display_name: Sitedorks
   description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term (dork) with a default set of websites, bug bounty programs or custom collection.
@@ -1258,8 +1199,7 @@ tools:
   - domain
   - url
   input_types:
-    d: --domain
-    url: --url
+    q: -query
 - name: linkook
   display_name: Linkook
   description: An OSINT tool for discovering linked social accounts and associated emails across multiple platforms using a single username.
@@ -1295,7 +1235,7 @@ tools:
   - username
   - email
   input_types:
-    u: --username
+    u: ''
 - name: osint-brazuca-regex
   display_name: Osint Brazuca Regex
   description: Repositrio criado com intuito de reunir expresses regulares dentro do contexto Brasil.
@@ -1330,8 +1270,6 @@ tools:
   accepts:
   - domain
   - name
-  input_types:
-    d: --domain
 - name: finalrecon
   display_name: Finalrecon
   description: All In One Web Recon.
@@ -1371,7 +1309,7 @@ tools:
   - domain
   - ip
   input_types:
-    d: --domain
+    url: --url
 - name: fierce
   display_name: Fierce
   description: A DNS reconnaissance tool for locating non-contiguous IP space.
@@ -1444,9 +1382,6 @@ tools:
   accepts:
   - domain
   - username
-  input_types:
-    d: --domain
-    u: --username
 - name: ctfr
   display_name: Ctfr
   description: Abusing Certificate Transparency logs for getting HTTPS websites subdomains.
@@ -1565,7 +1500,7 @@ tools:
   license: MIT
   stars: 1122
   tier: community
-  requires_python: '<3.13'
+  requires_python: <3.13
   install:
     method: pip
     package: auto-archiver
@@ -1681,7 +1616,7 @@ tools:
   license: MIT
   stars: 0
   tier: community
-  requires_python: '<3.13'
+  requires_python: <3.13
   install:
     method: pip
     package: telepathy
@@ -1749,7 +1684,6 @@ tools:
   - username
   input_types:
     e: --email
-    u: --email
   example: examples/neutrosint.txt
 - name: zen
   display_name: Zen
