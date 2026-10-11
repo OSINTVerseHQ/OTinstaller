@@ -101,7 +101,6 @@ tools:
   - domain
   input_types:
     d: --domain
-    e: --email
   example: examples/theharvester.txt
 - name: spiderfoot
   display_name: Spiderfoot
