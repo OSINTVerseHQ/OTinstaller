@@ -1116,6 +1116,9 @@ def run(
         run_target = target
     elif remaining_args:
         run_target = remaining_args[0]
+    elif typed_inputs:
+        # Use the first typed input value as target
+        run_target = next(iter(typed_inputs.values()))
     else:
         run_target = "unspecified"
 
