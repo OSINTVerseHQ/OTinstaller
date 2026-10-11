@@ -258,7 +258,7 @@ def _build_tool_args(tool, typed_inputs: dict[str, str]) -> list[str]:
 
     Returns a list of arguments to pass to the tool.
     """
-    args = []
+    args = list(tool.default_args)
     for prefix, value in typed_inputs.items():
         if prefix in tool.input_types:
             flag = tool.input_types[prefix]
