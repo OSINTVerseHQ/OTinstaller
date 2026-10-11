@@ -1675,9 +1675,10 @@ tools:
   capabilities:
   - email-search
   - username-search
+  example: examples/neutrosint.txt
   topics:
-  - email
-  - protonmail
+    - email
+    - breach
   api_keys:
     required: []
     optional: []
@@ -1691,7 +1692,6 @@ tools:
   - username
   input_types:
     e: --email
-  example: examples/neutrosint.txt
 - name: zen
   display_name: Zen
   description: Find email addresses of GitHub users, repositories and organizations.
