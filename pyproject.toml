@@ -28,6 +28,12 @@ dependencies = [
     "pyyaml",
 ]
 
+[project.urls]
+Homepage = "https://github.com/OSINTVerseHQ/OTinstaller"
+Repository = "https://github.com/OSINTVerseHQ/OTinstaller"
+Documentation = "https://github.com/OSINTVerseHQ/OTinstaller-Docs"
+Issues = "https://github.com/OSINTVerseHQ/OTinstaller/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest",

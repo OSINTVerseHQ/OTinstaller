@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/otinstaller-banner.png" alt="OTinstaller banner" width="900">
+  <img src="https://raw.githubusercontent.com/OSINTVerseHQ/OTinstaller/main/docs/images/otinstaller-banner.png" alt="OTinstaller banner" width="900">
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
   <a href="https://pypi.org/project/otinstaller/"><img src="https://img.shields.io/pypi/v/otinstaller" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python 3.10 to 3.12">
   <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Linux">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+  <a href="https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@ ot run sherlock -- u:johndoe
 ```
 
 <p align="center">
-  <img src="docs/images/otinstaller-demo.png" alt="Installing and running a tool with OTinstaller" width="820">
+  <img src="https://raw.githubusercontent.com/OSINTVerseHQ/OTinstaller/main/docs/images/otinstaller-demo.png" alt="Installing and running a tool with OTinstaller" width="820">
 </p>
 
 The full install options, including Python 3.13+ systems, are below.
@@ -209,7 +209,7 @@ Every command supports `--json`. Commands never prompt when `--yes` or `-y` is g
 
 The startup banner is only shown in an interactive terminal. It is never printed with `--json` or when output is piped, and `OTINSTALLER_NO_BANNER=1` turns it off completely.
 
-For AI agents, see [`llms.txt`](llms.txt).
+For AI agents, see [`llms.txt`](https://github.com/OSINTVerseHQ/OTinstaller/blob/main/llms.txt).
 
 ## Results
 
@@ -266,4 +266,4 @@ Built by [OSINTverse](https://osintverse.com/). Contributions, bug reports and n
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE).
