@@ -68,7 +68,6 @@ tools:
     e: ''
   default_args:
   - email
-  example: examples/ghunt.txt
   needs_config: true
 - name: theharvester
   display_name: theHarvester
