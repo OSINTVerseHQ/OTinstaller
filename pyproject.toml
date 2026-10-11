@@ -32,7 +32,7 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-asyncio",
-    "ruff",
+    "ruff==0.16.10",
 ]
 pipeline = [
     "requests",
