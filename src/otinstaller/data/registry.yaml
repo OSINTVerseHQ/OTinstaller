@@ -299,10 +299,12 @@ tools:
   accepts:
   - domain
   - ip
-  - username
   input_types:
-    d: --domain
-    u: --username
+    d: -t
+  default_args:
+  - -y
+  - -p
+  - subdomain-enum
 - name: dnstwist
   display_name: Dnstwist
   description: Domain name permutation engine for detecting homograph phishing attacks, typo squatting, and brand impersonation.
