@@ -48,7 +48,8 @@ Tool descriptions, docs and messages stay neutral.
   targets: no path traversal, no shell metacharacters in filenames.
 - Never log or write API key values anywhere (logs, meta.json, error messages).
 - Metadata is neutral: author "otinstaller contributors". No personal names, emails or
-  local paths anywhere in the repo.
+  local paths anywhere in the repo, except the team credits in the README Team section,
+  the `about` command and the startup banner.
 
 ## Style rules (the code should read like an experienced developer wrote it)
 - Comments explain why, not what. Skip comments on obvious code. Most functions need
