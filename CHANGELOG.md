@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Contact email and OSINTverse social links in the README and `otinstaller about`
+
 ## [0.0.2] - 2026-10-11
 
 ### Added

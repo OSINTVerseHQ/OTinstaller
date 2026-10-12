@@ -59,6 +59,17 @@ def test_banner_hidden_when_not_a_tty():
     assert "██" not in result.output
 
 
+def test_about_shows_contact():
+    result = CliRunner().invoke(app, ["about"])
+    assert result.exit_code == 0
+    assert "hi@osintverse.com" in result.output
+    assert "https://x.com/osintversehq" in result.output
+    assert "https://www.linkedin.com/company/osintverse" in result.output
+    assert "https://www.youtube.com/@osintversehq" in result.output
+    assert "https://www.reddit.com/r/OSINTVerse/" in result.output
+    assert "https://github.com/OSINTVerseHQ" in result.output
+
+
 def test_bare_invocation_shows_help():
     result = CliRunner().invoke(app, [])
     assert result.exit_code == 0
