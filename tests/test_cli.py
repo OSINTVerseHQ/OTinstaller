@@ -21,7 +21,7 @@ runner = CliRunner()
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "otinstaller 0.0.2" in result.output
+    assert "otinstaller 0.0.3" in result.output
 
 
 def test_help_contains_commands():

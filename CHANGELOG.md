@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-10-12
+
 ### Added
 - Contact email and OSINTverse social links in the README and `otinstaller about`
+- README tool catalogue, generated from the registry, plus a why section, FAQ, docs link and launch video
 
 ### Changed
 - user-scanner 1.5.2.2, linkook 1.1.3, aliens-eye 2.7.0 and mailaccess 0.18.5, each re-verified on Ubuntu 24.04 with Python 3.12
