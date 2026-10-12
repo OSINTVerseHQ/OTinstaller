@@ -20,6 +20,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#typed-inputs">Typed inputs</a> ·
   <a href="#command-reference">Commands</a> ·
+  <a href="#tools">Tools</a> ·
   <a href="#team">Team</a> ·
   <a href="https://youtu.be/_AfUGMFRaKA">Launch video</a>
 </p>
@@ -252,6 +253,61 @@ OTinstaller installs and runs third-party open-source tools. It does not create,
 Use them only on targets you are authorized to investigate, and follow the laws that apply to you and the terms of the services you query. Do not use them to harass, stalk or harm anyone.
 
 Tools tagged `dual-use` in the registry print a notice and ask for confirmation before installing, unless `--yes` is given. The full notice is accepted on first `otinstaller init`, and `otinstaller init` shows it again any time.
+
+
+## Tools
+
+The registry currently ships these tools. GitHub is the upstream project. Docs is the OTinstaller page for that tool.
+
+| Name | GitHub | Docs |
+| --- | --- | --- |
+| Aliens Eye | [arxhr007/Aliens_eye](https://github.com/arxhr007/Aliens_eye) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/aliens-eye) |
+| Auto Archiver | [bellingcat/auto-archiver](https://github.com/bellingcat/auto-archiver) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/auto-archiver) |
+| Bbot | [blacklanternsecurity/bbot](https://github.com/blacklanternsecurity/bbot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/bbot) |
+| Blackbird | [p1ngul1n0/blackbird](https://github.com/p1ngul1n0/blackbird) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/blackbird) |
+| Crosslinked | [m8sec/CrossLinked](https://github.com/m8sec/CrossLinked) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/crosslinked) |
+| Ctfr | [UnaPibaGeek/ctfr](https://github.com/UnaPibaGeek/ctfr) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ctfr) |
+| Dnsgen | [AlephNullSK/dnsgen](https://github.com/AlephNullSK/dnsgen) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/dnsgen) |
+| Dnstwist | [elceef/dnstwist](https://github.com/elceef/dnstwist) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/dnstwist) |
+| EDGAR Tool | [bellingcat/edgar](https://github.com/bellingcat/edgar) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/edgar-tool) |
+| Fierce | [mschwager/fierce](https://github.com/mschwager/fierce) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/fierce) |
+| Finalrecon | [thewhiteh4t/FinalRecon](https://github.com/thewhiteh4t/FinalRecon) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/finalrecon) |
+| Fsociety | [fsociety-team/fsociety](https://github.com/fsociety-team/fsociety) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/fsociety) |
+| Ghunt | [mxrch/GHunt](https://github.com/mxrch/GHunt) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ghunt) |
+| H8Mail | [khast3x/h8mail](https://github.com/khast3x/h8mail) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/h8mail) |
+| Holehe | [megadose/holehe](https://github.com/megadose/holehe) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/holehe) |
+| Ignorant | [megadose/ignorant](https://github.com/megadose/ignorant) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ignorant) |
+| Instagram Location Search | [bellingcat/instagram-location-search](https://github.com/bellingcat/instagram-location-search) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-location-search) |
+| Instagram Monitor | [misiektoja/instagram_monitor](https://github.com/misiektoja/instagram_monitor) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-monitor) |
+| Instaloader | [instaloader/instaloader](https://github.com/instaloader/instaloader) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instaloader) |
+| Ivre | [ivre/ivre](https://github.com/ivre/ivre) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ivre) |
+| Linkook | [JackJuly/linkook](https://github.com/JackJuly/linkook) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/linkook) |
+| Maigret | [soxoj/maigret](https://github.com/soxoj/maigret) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/maigret) |
+| Mailaccess | [KatrielMoses/MailAccess](https://github.com/KatrielMoses/MailAccess) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/mailaccess) |
+| NeutrOSINT | [Kr0wZ/NeutrOSINT](https://github.com/Kr0wZ/NeutrOSINT) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/neutrosint) |
+| Nexfil | [thewhiteh4t/nexfil](https://github.com/thewhiteh4t/nexfil) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/nexfil) |
+| Onionsearch | [megadose/OnionSearch](https://github.com/megadose/OnionSearch) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/onionsearch) |
+| Openosint | [OpenOSINT/OpenOSINT](https://github.com/OpenOSINT/OpenOSINT) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/openosint) |
+| Osint Brazuca Regex | [osintbrazuca/osint-brazuca-regex](https://github.com/osintbrazuca/osint-brazuca-regex) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/osint-brazuca-regex) |
+| Paramspider | [devanshbatham/ParamSpider](https://github.com/devanshbatham/ParamSpider) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/paramspider) |
+| Pywerview | [the-useless-one/pywerview](https://github.com/the-useless-one/pywerview) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/pywerview) |
+| Secator | [freelabz/secator](https://github.com/freelabz/secator) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/secator) |
+| Sherlock | [sherlock-project/sherlock](https://github.com/sherlock-project/sherlock) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sherlock) |
+| Sitedorks | [Zarcolio/sitedorks](https://github.com/Zarcolio/sitedorks) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sitedorks) |
+| Socialscan | [iojw/socialscan](https://github.com/iojw/socialscan) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/socialscan) |
+| Socid Extractor | [soxoj/socid-extractor](https://github.com/soxoj/socid-extractor) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/socid-extractor) |
+| Spiderfoot | [smicallef/spiderfoot](https://github.com/smicallef/spiderfoot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/spiderfoot) |
+| Sublist3r | [aboul3la/Sublist3r](https://github.com/aboul3la/Sublist3r) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sublist3r) |
+| Telegram Phone Number Checker | [bellingcat/telegram-phone-number-checker](https://github.com/bellingcat/telegram-phone-number-checker) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/telegram-phone-number-checker) |
+| Telepathy | [jordanwildon/Telepathy](https://github.com/jordanwildon/Telepathy) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy) |
+| The Big Brother | [chadi0x/TheBigBrother](https://github.com/chadi0x/TheBigBrother) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/thebigbrother) |
+| theHarvester | [laramies/theHarvester](https://github.com/laramies/theHarvester) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/theharvester) |
+| Torbot | [DedSecInside/TorBot](https://github.com/DedSecInside/TorBot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/torbot) |
+| Toutatis | [megadose/toutatis](https://github.com/megadose/toutatis) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/toutatis) |
+| User Scanner | [kaifcodec/user-scanner](https://github.com/kaifcodec/user-scanner) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/user-scanner) |
+| Whatsapp Osint | [jasperan/whatsapp-osint](https://github.com/jasperan/whatsapp-osint) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/whatsapp-osint) |
+| Yark | [Owez/yark](https://github.com/Owez/yark) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/yark) |
+| Zen | [s0md3v/Zen](https://github.com/s0md3v/Zen) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/zen) |
 
 ## Team
 
