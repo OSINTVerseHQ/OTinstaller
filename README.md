@@ -13,13 +13,16 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python 3.10 to 3.12">
   <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Linux">
   <a href="https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+  <a href="https://github.com/OSINTVerseHQ/OTinstaller/stargazers"><img src="https://img.shields.io/github/stars/OSINTVerseHQ/OTinstaller?style=flat" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/OSINTVerseHQ/OTinstaller-Docs">Documentation</a> ·
+  <a href="https://osintverse.gitbook.io/otinstaller">Documentation</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#typed-inputs">Typed inputs</a> ·
   <a href="#command-reference">Commands</a> ·
+  <a href="#tool-catalogue">Tools</a> ·
+  <a href="#faq">FAQ</a> ·
   <a href="#tools">Tools</a> ·
   <a href="#team">Team</a> ·
   <a href="#contact">Contact</a> ·
@@ -49,6 +52,27 @@ Every open-source tool installs and runs a little differently. OTinstaller gives
 - **Script it.** Every command supports `--json`, and nothing prompts when `--yes` is given.
 
 `ot` is a short alias for `otinstaller`. Both work everywhere.
+
+## Why OTinstaller
+
+Running one tool by hand, spiderfoot in this case:
+
+```bash
+git clone https://github.com/smicallef/spiderfoot
+cd spiderfoot
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python3 sf.py -u passive -s example.com
+```
+
+The same thing with OTinstaller:
+
+```bash
+ot install spiderfoot
+ot run spiderfoot -- d:example.com
+```
+
+The same install-and-run pattern works for every tool in the catalogue. Each tool is pinned to a tested version, gets its own virtualenv, has its typed inputs turned into its own flags, and saves its output with a timestamp and a SHA-256.
 
 ## Quick start
 
@@ -256,59 +280,127 @@ Use them only on targets you are authorized to investigate, and follow the laws 
 Tools tagged `dual-use` in the registry print a notice and ask for confirmation before installing, unless `--yes` is given. The full notice is accepted on first `otinstaller init`, and `otinstaller init` shows it again any time.
 
 
-## Tools
+## Tool catalogue
 
-The registry currently ships these tools. GitHub is the upstream project. Docs is the OTinstaller page for that tool.
+<!-- tool-catalogue:start -->
+The registry ships **47 tools**. By what they accept: 22 username, 14 email, 5 phone, 19 domain, 7 ip address, 10 url, 5 name.
+A tool that accepts several input types is listed under the first one.
 
-| Name | GitHub | Docs |
-| --- | --- | --- |
-| Aliens Eye | [arxhr007/Aliens_eye](https://github.com/arxhr007/Aliens_eye) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/aliens-eye) |
-| Auto Archiver | [bellingcat/auto-archiver](https://github.com/bellingcat/auto-archiver) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/auto-archiver) |
-| Bbot | [blacklanternsecurity/bbot](https://github.com/blacklanternsecurity/bbot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/bbot) |
-| Blackbird | [p1ngul1n0/blackbird](https://github.com/p1ngul1n0/blackbird) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/blackbird) |
-| Crosslinked | [m8sec/CrossLinked](https://github.com/m8sec/CrossLinked) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/crosslinked) |
-| Ctfr | [UnaPibaGeek/ctfr](https://github.com/UnaPibaGeek/ctfr) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ctfr) |
-| Dnsgen | [AlephNullSK/dnsgen](https://github.com/AlephNullSK/dnsgen) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/dnsgen) |
-| Dnstwist | [elceef/dnstwist](https://github.com/elceef/dnstwist) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/dnstwist) |
-| EDGAR Tool | [bellingcat/edgar](https://github.com/bellingcat/edgar) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/edgar-tool) |
-| Fierce | [mschwager/fierce](https://github.com/mschwager/fierce) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/fierce) |
-| Finalrecon | [thewhiteh4t/FinalRecon](https://github.com/thewhiteh4t/FinalRecon) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/finalrecon) |
-| Fsociety | [fsociety-team/fsociety](https://github.com/fsociety-team/fsociety) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/fsociety) |
-| Ghunt | [mxrch/GHunt](https://github.com/mxrch/GHunt) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ghunt) |
-| H8Mail | [khast3x/h8mail](https://github.com/khast3x/h8mail) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/h8mail) |
-| Holehe | [megadose/holehe](https://github.com/megadose/holehe) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/holehe) |
-| Ignorant | [megadose/ignorant](https://github.com/megadose/ignorant) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ignorant) |
-| Instagram Location Search | [bellingcat/instagram-location-search](https://github.com/bellingcat/instagram-location-search) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-location-search) |
-| Instagram Monitor | [misiektoja/instagram_monitor](https://github.com/misiektoja/instagram_monitor) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-monitor) |
-| Instaloader | [instaloader/instaloader](https://github.com/instaloader/instaloader) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/instaloader) |
-| Ivre | [ivre/ivre](https://github.com/ivre/ivre) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/ivre) |
-| Linkook | [JackJuly/linkook](https://github.com/JackJuly/linkook) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/linkook) |
-| Maigret | [soxoj/maigret](https://github.com/soxoj/maigret) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/maigret) |
-| Mailaccess | [KatrielMoses/MailAccess](https://github.com/KatrielMoses/MailAccess) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/mailaccess) |
-| NeutrOSINT | [Kr0wZ/NeutrOSINT](https://github.com/Kr0wZ/NeutrOSINT) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/neutrosint) |
-| Nexfil | [thewhiteh4t/nexfil](https://github.com/thewhiteh4t/nexfil) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/nexfil) |
-| Onionsearch | [megadose/OnionSearch](https://github.com/megadose/OnionSearch) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/onionsearch) |
-| Openosint | [OpenOSINT/OpenOSINT](https://github.com/OpenOSINT/OpenOSINT) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/openosint) |
-| Osint Brazuca Regex | [osintbrazuca/osint-brazuca-regex](https://github.com/osintbrazuca/osint-brazuca-regex) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/osint-brazuca-regex) |
-| Paramspider | [devanshbatham/ParamSpider](https://github.com/devanshbatham/ParamSpider) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/paramspider) |
-| Pywerview | [the-useless-one/pywerview](https://github.com/the-useless-one/pywerview) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/pywerview) |
-| Secator | [freelabz/secator](https://github.com/freelabz/secator) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/secator) |
-| Sherlock | [sherlock-project/sherlock](https://github.com/sherlock-project/sherlock) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sherlock) |
-| Sitedorks | [Zarcolio/sitedorks](https://github.com/Zarcolio/sitedorks) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sitedorks) |
-| Socialscan | [iojw/socialscan](https://github.com/iojw/socialscan) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/socialscan) |
-| Socid Extractor | [soxoj/socid-extractor](https://github.com/soxoj/socid-extractor) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/socid-extractor) |
-| Spiderfoot | [smicallef/spiderfoot](https://github.com/smicallef/spiderfoot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/spiderfoot) |
-| Sublist3r | [aboul3la/Sublist3r](https://github.com/aboul3la/Sublist3r) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/sublist3r) |
-| Telegram Phone Number Checker | [bellingcat/telegram-phone-number-checker](https://github.com/bellingcat/telegram-phone-number-checker) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/telegram-phone-number-checker) |
-| Telepathy | [jordanwildon/Telepathy](https://github.com/jordanwildon/Telepathy) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy) |
-| The Big Brother | [chadi0x/TheBigBrother](https://github.com/chadi0x/TheBigBrother) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/thebigbrother) |
-| theHarvester | [laramies/theHarvester](https://github.com/laramies/theHarvester) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/theharvester) |
-| Torbot | [DedSecInside/TorBot](https://github.com/DedSecInside/TorBot) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/torbot) |
-| Toutatis | [megadose/toutatis](https://github.com/megadose/toutatis) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/toutatis) |
-| User Scanner | [kaifcodec/user-scanner](https://github.com/kaifcodec/user-scanner) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/user-scanner) |
-| Whatsapp Osint | [jasperan/whatsapp-osint](https://github.com/jasperan/whatsapp-osint) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/whatsapp-osint) |
-| Yark | [Owez/yark](https://github.com/Owez/yark) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/yark) |
-| Zen | [s0md3v/Zen](https://github.com/s0md3v/Zen) | [Docs](https://osintverse.gitbook.io/otinstaller/tools/zen) |
+<details>
+<summary><b>Username</b> (15)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [Aliens Eye](https://github.com/arxhr007/Aliens_eye) ([docs](https://osintverse.gitbook.io/otinstaller/tools/aliens-eye)) | Hunt down 840+ social media accounts using AI | `u:` |  |
+| [Blackbird](https://github.com/p1ngul1n0/blackbird) ([docs](https://osintverse.gitbook.io/otinstaller/tools/blackbird)) | OSINT tool to search for accounts by username and email across social networks | `u:` `e:` |  |
+| [Crosslinked](https://github.com/m8sec/CrossLinked) ([docs](https://osintverse.gitbook.io/otinstaller/tools/crosslinked)) | LinkedIn enumeration tool to extract valid employee names from an organization through search engine scraping | args after `--` |  |
+| [Instagram Monitor](https://github.com/misiektoja/instagram_monitor) ([docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-monitor)) | Track Instagram users' activities, profile changes and capture content with beautiful dashboards and... | `u:` | monitors continuously |
+| [Instaloader](https://github.com/instaloader/instaloader) ([docs](https://osintverse.gitbook.io/otinstaller/tools/instaloader)) | Download pictures (or videos) along with their captions and other metadata from Instagram | `u:` |  |
+| [Linkook](https://github.com/JackJuly/linkook) ([docs](https://osintverse.gitbook.io/otinstaller/tools/linkook)) | An OSINT tool for discovering linked social accounts and associated emails across multiple platforms using... | `u:` |  |
+| [Maigret](https://github.com/soxoj/maigret) ([docs](https://osintverse.gitbook.io/otinstaller/tools/maigret)) | Collect a dossier on a person by username from 6K websites | `u:` |  |
+| [Nexfil](https://github.com/thewhiteh4t/nexfil) ([docs](https://osintverse.gitbook.io/otinstaller/tools/nexfil)) | OSINT tool for finding profiles by username | `u:` |  |
+| [Openosint](https://github.com/OpenOSINT/OpenOSINT) ([docs](https://osintverse.gitbook.io/otinstaller/tools/openosint)) | AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes | args after `--` |  |
+| [Sherlock](https://github.com/sherlock-project/sherlock) ([docs](https://osintverse.gitbook.io/otinstaller/tools/sherlock)) | Hunt down social media accounts by username across social networks | `u:` |  |
+| [Socialscan](https://github.com/iojw/socialscan) ([docs](https://osintverse.gitbook.io/otinstaller/tools/socialscan)) | Python library for accurately querying username and email usage on online platforms | `q:` |  |
+| [Telepathy](https://github.com/jordanwildon/Telepathy) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy)) | OSINT toolkit for investigating Telegram chats and accounts | `u:` `p:` | needs a login or API key |
+| [The Big Brother](https://github.com/chadi0x/TheBigBrother) ([docs](https://osintverse.gitbook.io/otinstaller/tools/thebigbrother)) | Find usernames across social networks | `u:` |  |
+| [User Scanner](https://github.com/kaifcodec/user-scanner) ([docs](https://osintverse.gitbook.io/otinstaller/tools/user-scanner)) | (2-in-1) Email & Username OSINT suite featuring native MCP support for deep data extraction just from a... | `u:` `e:` |  |
+| [Zen](https://github.com/s0md3v/Zen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/zen)) | Find email addresses of GitHub users, repositories and organizations | `u:` `url:` |  |
+
+</details>
+
+<details>
+<summary><b>Email</b> (5)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [Ghunt](https://github.com/mxrch/GHunt) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ghunt)) | Offensive Google framework | `e:` | needs a login or API key |
+| [H8Mail](https://github.com/khast3x/h8mail) ([docs](https://osintverse.gitbook.io/otinstaller/tools/h8mail)) | Email OSINT & Password breach hunting tool, locally or using premium services | `e:` |  |
+| [Holehe](https://github.com/megadose/holehe) ([docs](https://osintverse.gitbook.io/otinstaller/tools/holehe)) | holehe allows you to check if the mail is used on different sites like twitter, instagram and will... | `e:` |  |
+| [Mailaccess](https://github.com/KatrielMoses/MailAccess) ([docs](https://osintverse.gitbook.io/otinstaller/tools/mailaccess)) | Free email OSINT tool, 2500+ platforms, identity clustering, breach detection | `e:` |  |
+| [NeutrOSINT](https://github.com/Kr0wZ/NeutrOSINT) ([docs](https://osintverse.gitbook.io/otinstaller/tools/neutrosint)) | Check if an email address or username exists on ProtonMail | `e:` |  |
+
+</details>
+
+<details>
+<summary><b>Phone</b> (4)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [Ignorant](https://github.com/megadose/ignorant) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ignorant)) | ignorant allows you to check if a phone number is used on different sites like snapchat, instagram | args after `--` |  |
+| [Telegram Phone Number Checker](https://github.com/bellingcat/telegram-phone-number-checker) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telegram-phone-number-checker)) | Check if phone numbers are connected to Telegram accounts | `p:` `u:` | needs a login or API key |
+| [Toutatis](https://github.com/megadose/toutatis) ([docs](https://osintverse.gitbook.io/otinstaller/tools/toutatis)) | Toutatis is a tool that allows you to extract information from instagrams accounts such as e-mails, phone... | `u:` | needs a login or API key |
+| [Whatsapp Osint](https://github.com/jasperan/whatsapp-osint) ([docs](https://osintverse.gitbook.io/otinstaller/tools/whatsapp-osint)) | WhatsApp spy - logs online/offline events from ANYONE in the world | args after `--` | needs a login or API key, monitors continuously |
+
+</details>
+
+<details>
+<summary><b>Domain</b> (16)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [Bbot](https://github.com/blacklanternsecurity/bbot) ([docs](https://osintverse.gitbook.io/otinstaller/tools/bbot)) | The recursive internet scanner for hackers | `d:` |  |
+| [Ctfr](https://github.com/UnaPibaGeek/ctfr) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ctfr)) | Abusing Certificate Transparency logs for getting HTTPS websites subdomains | `d:` |  |
+| [Dnsgen](https://github.com/AlephNullSK/dnsgen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/dnsgen)) | DNSGen is a powerful and flexible DNS name permutation tool designed for security researchers and... | `d:` |  |
+| [Dnstwist](https://github.com/elceef/dnstwist) ([docs](https://osintverse.gitbook.io/otinstaller/tools/dnstwist)) | Domain name permutation engine for detecting homograph phishing attacks, typo squatting, and brand... | `d:` |  |
+| [Fierce](https://github.com/mschwager/fierce) ([docs](https://osintverse.gitbook.io/otinstaller/tools/fierce)) | A DNS reconnaissance tool for locating non-contiguous IP space | `d:` |  |
+| [Finalrecon](https://github.com/thewhiteh4t/FinalRecon) ([docs](https://osintverse.gitbook.io/otinstaller/tools/finalrecon)) | All In One Web Recon | `url:` |  |
+| [Fsociety](https://github.com/fsociety-team/fsociety) ([docs](https://osintverse.gitbook.io/otinstaller/tools/fsociety)) | A Modular Penetration Testing Framework | args after `--` |  |
+| [Ivre](https://github.com/ivre/ivre) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ivre)) | Network recon framework | args after `--` |  |
+| [Osint Brazuca Regex](https://github.com/osintbrazuca/osint-brazuca-regex) ([docs](https://osintverse.gitbook.io/otinstaller/tools/osint-brazuca-regex)) | Repositrio criado com intuito de reunir expresses regulares dentro do contexto Brasil | args after `--` |  |
+| [Paramspider](https://github.com/devanshbatham/ParamSpider) ([docs](https://osintverse.gitbook.io/otinstaller/tools/paramspider)) | Mining URLs from dark corners of Web Archives for bug hunting/fuzzing/further probing | `d:` |  |
+| [Pywerview](https://github.com/the-useless-one/pywerview) ([docs](https://osintverse.gitbook.io/otinstaller/tools/pywerview)) | A (partial) Python rewriting of PowerSploit's PowerView | args after `--` |  |
+| [Secator](https://github.com/freelabz/secator) ([docs](https://osintverse.gitbook.io/otinstaller/tools/secator)) | secator - the pentester's swiss knife | args after `--` |  |
+| [Sitedorks](https://github.com/Zarcolio/sitedorks) ([docs](https://osintverse.gitbook.io/otinstaller/tools/sitedorks)) | Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term (dork) with a default set of websites,... | `q:` |  |
+| [Spiderfoot](https://github.com/smicallef/spiderfoot) ([docs](https://osintverse.gitbook.io/otinstaller/tools/spiderfoot)) | SpiderFoot automates OSINT for threat intelligence and mapping your attack surface | `d:` |  |
+| [Sublist3r](https://github.com/aboul3la/Sublist3r) ([docs](https://osintverse.gitbook.io/otinstaller/tools/sublist3r)) | Fast subdomain enumeration tool using multiple search engines and certificate transparency logs | `d:` |  |
+| [theHarvester](https://github.com/laramies/theHarvester) ([docs](https://osintverse.gitbook.io/otinstaller/tools/theharvester)) | Find emails, subdomains and names for a domain | `d:` |  |
+
+</details>
+
+<details>
+<summary><b>URL</b> (6)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [Auto Archiver](https://github.com/bellingcat/auto-archiver) ([docs](https://osintverse.gitbook.io/otinstaller/tools/auto-archiver)) | Automatically archive web content from various sources | `url:` | needs a login or API key |
+| [Instagram Location Search](https://github.com/bellingcat/instagram-location-search) ([docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-location-search)) | Find Instagram location IDs near specified coordinates | `lat:` `lng:` |  |
+| [Onionsearch](https://github.com/megadose/OnionSearch) ([docs](https://osintverse.gitbook.io/otinstaller/tools/onionsearch)) | OnionSearch is a script that scrapes urls on different | `q:` |  |
+| [Socid Extractor](https://github.com/soxoj/socid-extractor) ([docs](https://osintverse.gitbook.io/otinstaller/tools/socid-extractor)) | The extraction engine behind Maigret: turn any profile URL into a structured OSINT record across 150+ sites | `url:` |  |
+| [Torbot](https://github.com/DedSecInside/TorBot) ([docs](https://osintverse.gitbook.io/otinstaller/tools/torbot)) | Dark Web OSINT Tool | `url:` |  |
+| [Yark](https://github.com/Owez/yark) ([docs](https://osintverse.gitbook.io/otinstaller/tools/yark)) | OSINT for YouTube made simple | args after `--` |  |
+
+</details>
+
+<details>
+<summary><b>Name</b> (1)</summary>
+
+| Tool | What it does | Typed inputs | Notes |
+| --- | --- | --- | --- |
+| [EDGAR Tool](https://github.com/bellingcat/edgar) ([docs](https://osintverse.gitbook.io/otinstaller/tools/edgar-tool)) | Command line interface to search and retrieve corporate and financial data from the SEC EDGAR database | `q:` `d:` |  |
+
+</details>
+
+<!-- tool-catalogue:end -->
+
+Every page linked as docs shows the tool's source, install method, credentials, typed inputs and example commands. Missing a tool? [Open an issue](https://github.com/OSINTVerseHQ/OTinstaller/issues) with its repository link. Each addition is installed, pinned to a commit and checked against its real flags before it ships.
+
+## FAQ
+
+**Does it work on Windows or macOS?**
+On Windows, yes, inside WSL2 with Ubuntu. macOS is not tested yet, and most of the tools are built for Linux first.
+
+**Do I need root?**
+No. Root is only needed once, for `sudo apt install python3-venv git`. Everything else lives in your home directory under `~/.otinstaller/`.
+
+**Does OTinstaller send my data anywhere?**
+OTinstaller itself only contacts GitHub and PyPI, to install and update tools. There is no telemetry. The tools you run contact the services they are built to query.
+
+**How do I uninstall it?**
+`ot remove --all` removes every tool, then `pipx uninstall otinstaller` removes OTinstaller itself. `rm -rf ~/.otinstaller` deletes the config, the API key file and the logs. Results stay wherever you ran your commands.
+
+**Is it legal to use?**
+The tools are legal to install. Whether a particular use is legal depends on where you are and what you are investigating. Read [Responsible use](#responsible-use) before running anything against a real person.
 
 ## Team
 
@@ -334,6 +426,8 @@ Built by [OSINTverse](https://osintverse.com/).
 ## Contact
 
 Email [hi@osintverse.com](mailto:hi@osintverse.com) for contributions, bug reports, new tool suggestions, or anything else. Bug reports can also go through [issues](https://github.com/OSINTVerseHQ/OTinstaller/issues).
+
+If OTinstaller saves you time, a star on GitHub helps other investigators find it.
 
 [X](https://x.com/osintversehq) · [LinkedIn](https://www.linkedin.com/company/osintverse) · [YouTube](https://www.youtube.com/@osintversehq) · [Reddit](https://www.reddit.com/r/OSINTVerse/) · [GitHub](https://github.com/OSINTVerseHQ)
 
