@@ -292,7 +292,7 @@ A tool that accepts several input types is listed under the first one.
 | Tool | What it does | Typed inputs | Notes |
 | --- | --- | --- | --- |
 | [Aliens Eye](https://github.com/arxhr007/Aliens_eye) ([docs](https://osintverse.gitbook.io/otinstaller/tools/aliens-eye)) | Hunt down 840+ social media accounts using AI | `u:` |  |
-| [Blackbird](https://github.com/p1ngul1n0/blackbird) ([docs](https://osintverse.gitbook.io/otinstaller/tools/blackbird)) | OSINT tool to search for accounts by username and email across social networks | `u:` `e:` |  |
+| [Blackbird](https://github.com/antoniaci/blackbird) ([docs](https://osintverse.gitbook.io/otinstaller/tools/blackbird)) | OSINT tool to search for accounts by username and email across social networks | `u:` `e:` |  |
 | [Crosslinked](https://github.com/m8sec/CrossLinked) ([docs](https://osintverse.gitbook.io/otinstaller/tools/crosslinked)) | LinkedIn enumeration tool to extract valid employee names from an organization through search engine scraping | args after `--` |  |
 | [Instagram Monitor](https://github.com/misiektoja/instagram_monitor) ([docs](https://osintverse.gitbook.io/otinstaller/tools/instagram-monitor)) | Track Instagram users' activities, profile changes and capture content with beautiful dashboards and... | `u:` | monitors continuously |
 | [Instaloader](https://github.com/instaloader/instaloader) ([docs](https://osintverse.gitbook.io/otinstaller/tools/instaloader)) | Download pictures (or videos) along with their captions and other metadata from Instagram | `u:` |  |
@@ -302,7 +302,7 @@ A tool that accepts several input types is listed under the first one.
 | [Openosint](https://github.com/OpenOSINT/OpenOSINT) ([docs](https://osintverse.gitbook.io/otinstaller/tools/openosint)) | AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes | args after `--` |  |
 | [Sherlock](https://github.com/sherlock-project/sherlock) ([docs](https://osintverse.gitbook.io/otinstaller/tools/sherlock)) | Hunt down social media accounts by username across social networks | `u:` |  |
 | [Socialscan](https://github.com/iojw/socialscan) ([docs](https://osintverse.gitbook.io/otinstaller/tools/socialscan)) | Python library for accurately querying username and email usage on online platforms | `q:` |  |
-| [Telepathy](https://github.com/jordanwildon/Telepathy) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy)) | OSINT toolkit for investigating Telegram chats and accounts | `u:` `p:` | needs a login or API key |
+| [Telepathy](https://github.com/prose-intelligence-ltd/Telepathy-Community) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy)) | OSINT toolkit for investigating Telegram chats and accounts | `u:` `p:` | needs a login or API key |
 | [The Big Brother](https://github.com/chadi0x/TheBigBrother) ([docs](https://osintverse.gitbook.io/otinstaller/tools/thebigbrother)) | Find usernames across social networks | `u:` |  |
 | [User Scanner](https://github.com/kaifcodec/user-scanner) ([docs](https://osintverse.gitbook.io/otinstaller/tools/user-scanner)) | (2-in-1) Email & Username OSINT suite featuring native MCP support for deep data extraction just from a... | `u:` `e:` |  |
 | [Zen](https://github.com/s0md3v/Zen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/zen)) | Find email addresses of GitHub users, repositories and organizations | `u:` `url:` |  |
