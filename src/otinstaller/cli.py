@@ -150,13 +150,25 @@ def _print_about(no_color: bool = False) -> None:
     console.print("  Builder: [link=https://www.linkedin.com/in/sushantkoul07]Sushant Koul[/link]")
     console.print("  [link=https://x.com/dheerajydv19]Dheeraj Yadav[/link] (@dheerajydv19)")
     console.print("  [link=https://osintverse.com/]OSINTverse[/link]")
+    console.print()
+    console.print("[bold]Contact[/bold]")
+    contacts = (
+        "mailto:hi@osintverse.com",
+        "https://x.com/osintversehq",
+        "https://www.linkedin.com/company/osintverse",
+        "https://www.youtube.com/@osintversehq",
+        "https://www.reddit.com/r/OSINTVerse/",
+        "https://github.com/OSINTVerseHQ",
+    )
+    for url in contacts:
+        console.print(f"  [link={url}]{url.removeprefix('mailto:')}[/link]")
 
 
 @app.command(name="about")
 def about(
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
 ):
-    """Show the about banner with credits."""
+    """Show the banner, credits and contact."""
     _print_about(no_color)
 
 

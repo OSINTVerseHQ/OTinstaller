@@ -22,6 +22,7 @@
   <a href="#command-reference">Commands</a> ·
   <a href="#tools">Tools</a> ·
   <a href="#team">Team</a> ·
+  <a href="#contact">Contact</a> ·
   <a href="https://youtu.be/_AfUGMFRaKA">Launch video</a>
 </p>
 
@@ -212,7 +213,7 @@ otinstaller run --all --live e:john@example.com
 | `otinstaller keys check` | Check API keys |
 | `otinstaller resume` | Handle interrupted jobs |
 | `otinstaller doctor` | Check the machine |
-| `otinstaller about` | Show the banner and credits |
+| `otinstaller about` | Show the banner, credits and contact |
 
 ### Scripts and AI agents
 
@@ -328,7 +329,13 @@ The registry currently ships these tools. GitHub is the upstream project. Docs i
   </tr>
 </table>
 
-Built by [OSINTverse](https://osintverse.com/). Contributions, bug reports and new tool suggestions are welcome through [issues](https://github.com/OSINTVerseHQ/OTinstaller/issues).
+Built by [OSINTverse](https://osintverse.com/).
+
+## Contact
+
+Email [hi@osintverse.com](mailto:hi@osintverse.com) for contributions, bug reports, new tool suggestions, or anything else. Bug reports can also go through [issues](https://github.com/OSINTVerseHQ/OTinstaller/issues).
+
+[X](https://x.com/osintversehq) · [LinkedIn](https://www.linkedin.com/company/osintverse) · [YouTube](https://www.youtube.com/@osintversehq) · [Reddit](https://www.reddit.com/r/OSINTVerse/) · [GitHub](https://github.com/OSINTVerseHQ)
 
 ## License
 
