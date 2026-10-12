@@ -20,8 +20,18 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#typed-inputs">Typed inputs</a> ·
   <a href="#command-reference">Commands</a> ·
-  <a href="#team">Team</a>
+  <a href="#team">Team</a> ·
+  <a href="https://youtu.be/_AfUGMFRaKA">Launch video</a>
 </p>
+
+<p align="center">
+  <a href="https://youtu.be/_AfUGMFRaKA">
+    <img src="https://i.ytimg.com/vi/_AfUGMFRaKA/maxresdefault.jpg" alt="Watch the OTinstaller launch video on YouTube" width="760">
+  </a>
+  <br>
+  <a href="https://youtu.be/_AfUGMFRaKA"><b>Watch the launch video on YouTube (1:31)</b></a>
+</p>
+
 
 ---
 
