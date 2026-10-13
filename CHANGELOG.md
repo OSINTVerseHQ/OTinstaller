@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-10-13
+
 ### Added
 - `interactive` registry flag: single runs on a terminal use a pseudo-terminal, so login prompts, menus and setup wizards are visible and answerable. `--verbose` on a terminal does the same for any tool. Output is still saved and hashed
 - `run_from_source` registry flag for git scripts that read data files by relative path
