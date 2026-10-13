@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from otinstaller.cli import app
@@ -3416,3 +3417,207 @@ def test_run_live_status_queue_flag(monkeypatch, tmp_path):
                     )
                     assert result.exit_code == 0
                     assert mock_run_parallel.call_args[1].get("status_queue") is None
+
+
+def test_playbook_skips_incompatible_tool(monkeypatch, tmp_path):
+    """Playbook skips tool that doesn't support target type and prints message."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    # Create a custom registry with tools that have different accepts
+    tools = [
+        {
+            "name": "sherlock",
+            "display_name": "Sherlock",
+            "description": "Search usernames",
+            "install": {"method": "pip", "package": "sherlock-project"},
+            "entrypoint": {"command": "sherlock"},
+            "capabilities": ["username-search"],
+            "accepts": ["username"],
+        },
+        {
+            "name": "holehe",
+            "display_name": "Holehe",
+            "description": "Email OSINT",
+            "install": {"method": "pip", "package": "holehe"},
+            "entrypoint": {"command": "holehe"},
+            "capabilities": ["email-search"],
+            "accepts": ["email"],
+        },
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+
+    # Create playbook directory in temp path and change CWD to it
+    playbook_dir = tmp_path / "playbooks"
+    playbook_dir.mkdir()
+    playbook_file = playbook_dir / "test-playbook.yaml"
+    playbook_file.write_text(
+        yaml.dump(
+            {
+                "name": "test-playbook",
+                "description": "Test playbook",
+                "requires_target": True,
+                "tools": ["sherlock", "holehe"],
+            }
+        )
+    )
+
+    # Change CWD to temp path so playbook command finds the playbooks dir there
+    monkeypatch.chdir(tmp_path)
+
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    def mock_list_installed():
+        return [
+            InstalledTool(
+                name="sherlock",
+                version="1.0",
+                method="pip",
+                source="sherlock-project",
+                ref=None,
+                commit=None,
+                entry_command="sherlock",
+                entry_script=None,
+                installed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                updated_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+            InstalledTool(
+                name="holehe",
+                version="1.0",
+                method="pip",
+                source="holehe",
+                ref=None,
+                commit=None,
+                entry_command="holehe",
+                entry_script=None,
+                installed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                updated_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+        ]
+
+    meta = type(
+        "Meta",
+        (),
+        {
+            "tool": "sherlock",
+            "exit_code": 0,
+            "output_path": ("sherlock/unspecified/20240101-000000_sherlock_unspecified_abc123.txt"),
+            "sha256": "abc123",
+            "tool_version": "",
+        },
+    )()
+
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.list_installed", side_effect=mock_list_installed):
+            with patch("otinstaller.cli.run_tool", return_value=meta) as mock_run_tool:
+                with patch("otinstaller.cli.write_meta"):
+                    # Target is username: sherlock runs, holehe skipped
+                    result = runner.invoke(app, ["playbook", "test-playbook", "someuser"])
+                    assert result.exit_code == 0
+                    assert "skipping holehe: does not support 'username' targets" in result.output
+                    mock_run_tool.assert_called_once()
+                    # Verify only sherlock was called
+                    assert mock_run_tool.call_args[0][0].name == "sherlock"
+
+
+def test_playbook_no_compatible_tools_exits_2(monkeypatch, tmp_path):
+    """Playbook exits with code 2 when no tools are compatible with target type."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    tools = [
+        {
+            "name": "holehe",
+            "display_name": "Holehe",
+            "description": "Email OSINT",
+            "install": {"method": "pip", "package": "holehe"},
+            "entrypoint": {"command": "holehe"},
+            "capabilities": ["email-search"],
+            "accepts": ["email"],
+        },
+    ]
+    reg = make_registry_yaml(tmp_path, tools)
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(reg))
+
+    # Create playbook directory in temp path and change CWD to it
+    playbook_dir = tmp_path / "playbooks"
+    playbook_dir.mkdir()
+    playbook_file = playbook_dir / "test-playbook.yaml"
+    playbook_file.write_text(
+        yaml.dump(
+            {
+                "name": "test-playbook",
+                "description": "Test playbook",
+                "requires_target": True,
+                "tools": ["holehe"],
+            }
+        )
+    )
+
+    # Change CWD to temp path so playbook command finds the playbooks dir there
+    monkeypatch.chdir(tmp_path)
+
+    runner.invoke(app, ["init", "--yes"])
+
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    def mock_get_installed(name):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    def mock_list_installed():
+        return [
+            InstalledTool(
+                name="holehe",
+                version="1.0",
+                method="pip",
+                source="holehe",
+                ref=None,
+                commit=None,
+                entry_command="holehe",
+                entry_script=None,
+                installed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                updated_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+        ]
+
+    with patch("otinstaller.cli.get_installed", side_effect=mock_get_installed):
+        with patch("otinstaller.cli.list_installed", side_effect=mock_list_installed):
+            with patch("otinstaller.cli.run_tool") as mock_run_tool:
+                with patch("otinstaller.cli.write_meta"):
+                    # Target is a username, but holehe only accepts email
+                    result = runner.invoke(app, ["playbook", "test-playbook", "someuser"])
+                    assert result.exit_code == 2
+                    assert "error: no compatible tools for this target type" in result.output
+                    mock_run_tool.assert_not_called()

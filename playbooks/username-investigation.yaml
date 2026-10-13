@@ -4,4 +4,3 @@ requires_target: true
 tools:
   - sherlock
   - maigret
-  - holehe

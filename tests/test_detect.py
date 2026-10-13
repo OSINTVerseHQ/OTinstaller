@@ -32,8 +32,15 @@ def test_detect_domain():
     assert detect_target_type("example.com") == "domain"
     assert detect_target_type("sub.domain.org") == "domain"
     assert detect_target_type("test.co.uk") == "domain"
+    # Specific TLDs from IANA list
+    assert detect_target_type("example.gg") == "domain"
+    assert detect_target_type("example.pk") == "domain"
+    assert detect_target_type("example.ly") == "domain"
+    assert detect_target_type("example.to") == "domain"
+    assert detect_target_type("example.bd") == "domain"
+    assert detect_target_type("example.nz") == "domain"
     # Non-domain-like strings should not match
-    assert detect_target_type("random.text.here") != "domain"
+    assert detect_target_type("random.text.local") != "domain"
     assert detect_target_type("3.14") != "domain"
     assert detect_target_type("not-a-domain") != "domain"
 
@@ -42,10 +49,15 @@ def test_detect_username_fallback():
     """Everything else falls through to username (including phone-like strings)."""
     assert detect_target_type("someuser") == "username"
     assert detect_target_type("john.doe") == "username"
+    assert detect_target_type("jane.smith") == "username"
     # Phone-like strings fall through to username (documented limitation)
     assert detect_target_type("+1-555-123-4567") == "username"
     assert detect_target_type("555-123-4567") == "username"
     assert detect_target_type("1234567890") == "username"
+    # Dotted strings that are not valid domains (TLD not in IANA list)
+    assert detect_target_type("file.txt") == "username"
+    assert detect_target_type("config.json") == "username"
+    assert detect_target_type("readme.rst") == "username"
 
 
 def test_detect_detection_order():
