@@ -285,7 +285,7 @@ Tools tagged `dual-use` in the registry print a notice and ask for confirmation 
 ## Tool catalogue
 
 <!-- tool-catalogue:start -->
-The registry ships **47 tools**. By what they accept: 22 username, 14 email, 5 phone, 19 domain, 7 ip address, 10 url, 5 name.
+The registry ships **47 tools**. By what they accept: 24 username, 14 email, 5 phone, 19 domain, 7 ip address, 11 url, 5 name.
 A tool that accepts several input types is listed under the first one.
 
 <details>
