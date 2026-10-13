@@ -251,6 +251,8 @@ For AI agents, see [`llms.txt`](https://github.com/OSINTVerseHQ/OTinstaller/blob
 
 Results are saved to `./results/<tool>/<target>/` using the filename pattern `<YYYYmmdd-HHMMSS>_<tool>_<target>_<runid>.<ext>` plus a `.meta.json` sidecar. Results go to `./results/` in the folder where the command is run, so run it from the same folder each time, or set `OTINSTALLER_RESULTS_DIR` to a fixed path.
 
+Tools that ask for input, such as GHunt's login, setup wizards and menus, run on a pseudo-terminal when you are at one, so their prompts show up and the session is still saved. Values given to credential flags such as `--cookie`, `--token` or `--password` are written to `.meta.json` as `***`.
+
 ```
 results/sherlock/testuser/20260929-123456_sherlock_testuser_abc123.txt
 results/sherlock/testuser/20260929-123456_sherlock_testuser_abc123.meta.json

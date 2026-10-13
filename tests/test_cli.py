@@ -3621,3 +3621,61 @@ def test_playbook_no_compatible_tools_exits_2(monkeypatch, tmp_path):
                     assert result.exit_code == 2
                     assert "error: no compatible tools for this target type" in result.output
                     mock_run_tool.assert_not_called()
+
+
+def test_pick_target_prefers_explicit_target():
+    from otinstaller.cli import _pick_target
+
+    assert _pick_target("case1", {"u": "bob"}, ["--x"]) == "case1"
+
+
+def test_pick_target_prefers_typed_input_over_flags():
+    from otinstaller.cli import _pick_target
+
+    assert (
+        _pick_target(None, {"url": "https://example.com"}, ["--headers"]) == "https://example.com"
+    )
+
+
+def test_pick_target_skips_flags_in_plain_args():
+    from otinstaller.cli import _pick_target
+
+    assert _pick_target(None, {}, ["--registered", "domain.name"]) == "domain.name"
+    assert _pick_target(None, {}, ["-u", "johndoe"]) == "johndoe"
+    assert _pick_target(None, {}, ["user123"]) == "user123"
+
+
+def test_pick_target_falls_back_to_first_arg_then_unspecified():
+    from otinstaller.cli import _pick_target
+
+    assert _pick_target(None, {}, ["--help"]) == "--help"
+    assert _pick_target(None, {}, []) == "unspecified"
+
+
+def test_use_pty_only_on_a_terminal():
+    from otinstaller.cli import _use_pty
+    from otinstaller.registry import Entrypoint, Install, Tool
+
+    plain = Tool(name="a", display_name="A", description="d", entrypoint=Entrypoint(command="a"))
+    inter = Tool(
+        name="b",
+        display_name="B",
+        description="d",
+        install=Install(method="pip", package="b"),
+        entrypoint=Entrypoint(command="b"),
+        interactive=True,
+    )
+    assert _use_pty(inter, verbose=False, stdin_tty=True, stdout_tty=True)
+    assert _use_pty(plain, verbose=True, stdin_tty=True, stdout_tty=True)
+    assert not _use_pty(plain, verbose=False, stdin_tty=True, stdout_tty=True)
+    assert not _use_pty(inter, verbose=False, stdin_tty=False, stdout_tty=True)
+    assert not _use_pty(inter, verbose=True, stdin_tty=True, stdout_tty=False)
+
+
+def test_pick_target_never_uses_secret_values():
+    from otinstaller.cli import _pick_target
+
+    args = ["--cookie", "sessionid=abc", "--lat", "32.22"]
+    assert _pick_target(None, {}, args) == "32.22"
+    assert _pick_target(None, {}, ["--token=abc"]) == "unspecified"
+    assert _pick_target(None, {}, ["--api-hash", "deadbeef"]) == "unspecified"

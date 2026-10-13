@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `interactive` registry flag: single runs on a terminal use a pseudo-terminal, so login prompts, menus and setup wizards are visible and answerable. `--verbose` on a terminal does the same for any tool. Output is still saved and hashed
+- `run_from_source` registry flag for git scripts that read data files by relative path
+
+### Changed
+- instaloader 4.15.4 and mailaccess 0.18.6, re-verified on Ubuntu 24.04 with Python 3.12
+- The results folder is named after the typed input when there is one, otherwise the first argument that is not a flag, so `-- url:https://example.com --headers` no longer saves under `headers/`
+
+### Fixed
+- ghunt: `ot run ghunt -- login` runs `ghunt login` again; `e:` maps to the `email` subcommand instead of a default argument that was added to every run
+- blackbird runs from its checkout, so it finds `data/wmn-data.json` from any directory
+- dnstwist installs with its `[full]` extras (DNS, WHOIS, GeoIP, fuzzy hashing)
+- osint-brazuca-regex requires Python 3.12+, so install stops early on 3.10 and 3.11 instead of failing at run time
+- auto-archiver no longer warns that Google keys are required; they are optional
+- Values of credential flags such as `--cookie`, `--token`, `--password` and `--api-hash` are written as `***` in `.meta.json` and never used to name the results folder
+- `extra_packages` accepts `==`, `>=`, `<=`, `!=` and `~=` version operators
+
 ## [0.0.3] - 2026-10-12
 
 ### Added
