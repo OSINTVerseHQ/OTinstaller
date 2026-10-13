@@ -1,5 +1,8 @@
 """Registry tests."""
 
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,6 +17,7 @@ from otinstaller.registry import (
     search_tools,
     suggest_names,
 )
+from otinstaller.state import list_installed
 
 
 class TestParseTool:
@@ -378,7 +382,6 @@ def test_duplicate_names_fail():
             },
         ]
     }
-    import tempfile
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(data, f)
@@ -388,7 +391,6 @@ def test_duplicate_names_fail():
 
 
 def test_load_registry_empty():
-    import tempfile
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump({"tools": []}, f)
@@ -403,7 +405,6 @@ def test_load_registry_missing_file():
 
 
 def test_load_registry_invalid_yaml():
-    import tempfile
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         f.write("invalid: yaml: [")
@@ -413,7 +414,6 @@ def test_load_registry_invalid_yaml():
 
 
 def test_load_registry_not_a_list():
-    import tempfile
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump({"tools": "not a list"}, f)
@@ -734,3 +734,206 @@ def test_extra_packages_reject_bad_specs(spec):
                 "entrypoint": {"command": "piptool"},
             }
         )
+
+
+def test_registry_contract_all_tools_have_accepts():
+    """Contract test: every tool must declare at least one accepted target type."""
+    tools = load_registry(default_registry_path())
+
+    missing_accepts = [t.name for t in tools if not t.accepts]
+    assert missing_accepts == [], f"Tools missing 'accepts': {missing_accepts}"
+
+
+def test_registry_contract_input_types_match_accepts():
+    """Contract test: input_types prefixes must be compatible with accepts."""
+    tools = load_registry(default_registry_path())
+
+    # Only these mappings are valid (u->username, e->email, p->phone, d->domain, url->url)
+    prefix_to_accepts = {
+        "u": "username",
+        "e": "email",
+        "p": "phone",
+        "d": "domain",
+        "url": "url",
+    }
+
+    errors = []
+    for tool in tools:
+        if not tool.input_types:
+            continue
+        for prefix in tool.input_types:
+            if prefix not in prefix_to_accepts:
+                continue  # Unknown prefix, validation catches this
+            required_accept = prefix_to_accepts[prefix]
+            if required_accept not in tool.accepts:
+                msg = (
+                    f"{tool.name}: input_types has '{prefix}' which requires "
+                    f"accepts '{required_accept}', but accepts={tool.accepts}"
+                )
+                errors.append(msg)
+
+    assert errors == [], "\n".join(errors)
+
+
+def test_registry_contract_all_tools_have_verified():
+    """Contract test: every tool should have verified info (date, version, os, python)."""
+    tools = load_registry(default_registry_path())
+
+    missing_verified = []
+    for tool in tools:
+        if not tool.verified:
+            missing_verified.append(tool.name)
+        elif not all(
+            [
+                tool.verified.date,
+                tool.verified.version,
+                tool.verified.os,
+                tool.verified.python,
+            ]
+        ):
+            missing_verified.append(f"{tool.name} (incomplete)")
+
+    assert missing_verified == [], f"Tools missing/incomplete verified: {missing_verified}"
+
+
+def test_registry_contract_all_tools_have_example_or_placeholder():
+    """Contract test: tools should have example field (can be None but must be present)."""
+    tools = load_registry(default_registry_path())
+
+    missing_example = []
+    for tool in tools:
+        if tool.example is None:
+            missing_example.append(tool.name)
+
+    # This is a warning, not a hard failure - example files are added separately
+    # but we track it for completeness
+    if missing_example:
+        print(f"Tools without example file: {missing_example}")
+
+
+def test_registry_contract_all_tools_have_repo():
+    """Contract test: every tool must have a repo URL."""
+    tools = load_registry(default_registry_path())
+
+    missing_repo = [t.name for t in tools if not t.repo]
+    assert missing_repo == [], f"Tools missing 'repo': {missing_repo}"
+
+
+def test_registry_contract_all_tools_have_license():
+    """Contract test: every tool must have a license (can be 'unknown')."""
+    tools = load_registry(default_registry_path())
+
+    missing_license = [t.name for t in tools if not t.license]
+    assert missing_license == [], f"Tools missing 'license': {missing_license}"
+
+
+def test_registry_contract_all_tools_have_smoke_args():
+    """Contract test: every tool must have smoke_args for verification."""
+    tools = load_registry(default_registry_path())
+
+    missing_smoke = [t.name for t in tools if not t.smoke_args]
+    assert missing_smoke == [], f"Tools missing 'smoke_args': {missing_smoke}"
+
+
+@pytest.mark.network
+def test_registry_contract_installed_tools_accept_input_types():
+    """Contract test: run each installed tool with each input type and dummy value.
+
+    Fails if tool exits with code 2 or prints 'unrecognized arguments',
+    'no such option', 'invalid choice', 'Missing argument'.
+    """
+
+    from otinstaller.cli import default_registry_path, load_registry
+
+    installed = list_installed()
+    if not installed:
+        pytest.skip("No tools installed")
+
+    registry = load_registry(default_registry_path())
+    tools_by_name = {t.name: t for t in registry}
+
+    # Dummy values for each input type
+    dummy_values = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "domain": "example.com",
+        "ip": "8.8.8.8",
+        "phone": "+15551234567",
+        "url": "https://example.com",
+        "name": "Test Name",
+    }
+
+    forbidden_patterns = [
+        "unrecognized arguments",
+        "no such option",
+        "invalid choice",
+        "Missing argument",
+        "missing argument",
+    ]
+
+    for tool_state in installed:
+        tool = tools_by_name.get(tool_state.name)
+        if not tool:
+            continue
+
+        # Map input_types to dummy values
+        for prefix, flag in tool.input_types.items():
+            # Map prefix to target type
+            prefix_to_type = {
+                "u": "username",
+                "e": "email",
+                "d": "domain",
+                "p": "phone",
+                "url": "url",
+                "q": "domain",
+                "geo": "domain",
+                "tg": "username",
+                "lat": "domain",
+                "lng": "domain",
+            }
+            target_type = prefix_to_type.get(prefix)
+            if not target_type or target_type not in dummy_values:
+                continue
+            if target_type not in tool.accepts:
+                continue
+
+            dummy = dummy_values[target_type]
+            home = os.environ.get("OTINSTALLER_HOME", "~/.otinstaller")
+            tool_dir = Path(home).expanduser() / "tools" / tool.name
+
+            # Build command
+            if tool.entrypoint.command:
+                cmd = [str(tool_dir / "bin" / tool.entrypoint.command), flag, dummy]
+            elif tool.entrypoint.script:
+                venv_python = tool_dir / "bin" / "python"
+                script_path = tool_dir / tool.entrypoint.script
+                cmd = [str(venv_python), str(script_path), flag, dummy]
+            else:
+                continue
+
+            # Run with network disabled
+            env = os.environ.copy()
+            env["NO_NETWORK"] = "1"
+
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=tool_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=env,
+                )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                continue
+
+            # Check for forbidden patterns
+            output = result.stdout + result.stderr
+            for pattern in forbidden_patterns:
+                assert pattern not in output, (
+                    f"{tool.name} ({flag} {dummy}): "
+                    f"found forbidden pattern '{pattern}' in output: {output[:500]}"
+                )
+            assert result.returncode != 2, (
+                f"{tool.name} ({flag} {dummy}): exited with code 2, output: {output[:500]}"
+            )

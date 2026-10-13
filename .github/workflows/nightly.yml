@@ -1,0 +1,71 @@
+name: Nightly Registry Verification
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  nightly-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,pipeline]"
+
+      - name: Run pipeline verification
+        env:
+          RUN_NETWORK_TESTS: "1"
+        run: |
+          python -m pipeline.verify --limit 20
+
+      - name: Check for new passed tools
+        if: always()
+        run: |
+          if [ -f registry/generated_registry.yaml ]; then
+            echo "Generated registry:"
+            cat registry/generated_registry.yaml
+          else
+            echo "No new tools passed verification"
+          fi
+
+  nightly-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y git
+
+      - name: Install project
+        run: pip install -e ".[dev,pipeline]"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Run full test suite
+        run: pytest
+        env:
+          RUN_NETWORK_TESTS: "0"
+
+      - name: Run installed tool contract test
+        run: pytest tests/test_registry.py::test_registry_contract_installed_tools_accept_input_types -v
+        env:
+          RUN_NETWORK_TESTS: "0"

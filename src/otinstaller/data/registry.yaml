@@ -72,6 +72,7 @@ tools:
   display_name: theHarvester
   description: Find emails, subdomains and names for a domain
   repo: laramies/theHarvester
+  license: GPL-2.0
   install:
     method: git
     url: https://github.com/laramies/theHarvester.git
@@ -486,6 +487,7 @@ tools:
     python: 3.12.14
   accepts:
   - phone
+  - username
   input_types:
     u: --username
   needs_config: true
@@ -1320,6 +1322,7 @@ tools:
   accepts:
   - domain
   - ip
+  - url
   input_types:
     url: --url
 - name: fierce
@@ -1505,6 +1508,7 @@ tools:
     python: 3.12.14
   accepts:
   - phone
+  - username
   input_types:
     p: --phone-numbers
     u: --usernames
