@@ -12,7 +12,7 @@
   <a href="https://pypi.org/project/otinstaller/"><img src="https://img.shields.io/pypi/v/otinstaller" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python 3.10 to 3.12">
   <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Linux">
-  <a href="https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+  <a href="https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 license"></a>
   <a href="https://github.com/OSINTVerseHQ/OTinstaller/stargazers"><img src="https://img.shields.io/github/stars/OSINTVerseHQ/OTinstaller?style=flat" alt="GitHub stars"></a>
 </p>
 
@@ -435,4 +435,6 @@ If OTinstaller saves you time, a star on GitHub helps other investigators find i
 
 ## License
 
-MIT. See [LICENSE](https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE).
+Apache License 2.0. See [LICENSE](https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE) and [NOTICE](https://github.com/OSINTVerseHQ/OTinstaller/blob/main/NOTICE).
+
+You can use, modify and redistribute OTinstaller, including in commercial work. If you redistribute it or ship something built on it, the license requires you to keep the NOTICE file with your copy. Please credit it as "OTinstaller by OSINTverse" with a link to this repository.

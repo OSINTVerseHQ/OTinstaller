@@ -1,0 +1,15 @@
+OTinstaller
+Copyright 2026 OSINTverse
+
+Created by Sushant Koul and Dheeraj Yadav at OSINTverse.
+https://github.com/OSINTVerseHQ/OTinstaller
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+If you redistribute OTinstaller or a work based on it, Section 4(d) of the
+license requires you to keep the attribution notices in this NOTICE file with
+your copy. Please credit it as "OTinstaller by OSINTverse" and link to the
+repository above.
+
+OTinstaller installs and runs third-party open-source tools. Those tools are
+not part of OTinstaller and keep their own licenses.

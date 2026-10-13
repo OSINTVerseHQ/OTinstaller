@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- License changed from MIT to Apache License 2.0, with a NOTICE file that redistributions and derived works must keep, crediting OSINTverse. Releases up to and including 0.0.4 stay under MIT.
+
 ## [0.0.4] - 2026-10-13
 
 ### Added
