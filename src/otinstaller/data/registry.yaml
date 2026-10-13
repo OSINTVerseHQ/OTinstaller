@@ -1681,7 +1681,7 @@ tools:
   example: examples/neutrosint.txt
   topics:
     - email
-    - breach
+    - protonmail
   api_keys:
     required: []
     optional: []

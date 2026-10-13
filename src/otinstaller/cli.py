@@ -2460,28 +2460,32 @@ def playbook(
     tools = [find_tool(tools_registry, t) for t in pb.get("tools", [])]
     tools = [t for t in tools if t]
 
-    # Validate each tool supports the target type
+    # Filter tools by target type compatibility
     detected_type = detect_target_type(target) if target else None
+    compatible_tools = []
     if detected_type:
         for tool in tools:
-            if detected_type not in tool.accepts:
-                msg = (
-                    f"error: tool '{tool.name}' in playbook '{name}' "
-                    f"does not support '{detected_type}' targets"
-                )
-                typer.echo(msg, err=True)
-                raise typer.Exit(code=2)
+            if detected_type in tool.accepts:
+                compatible_tools.append(tool)
+            else:
+                typer.echo(f"skipping {tool.name}: does not support '{detected_type}' targets")
+    else:
+        compatible_tools = tools
+
+    if not compatible_tools:
+        typer.echo("error: no compatible tools for this target type", err=True)
+        raise typer.Exit(code=2)
 
     case = pb.get("case") or f"playbook-{name}"
 
     if not json_output:
         typer.echo(f"Running playbook '{name}' on target: {target or 'N/A'}")
 
-    # Run all tools against the target
+    # Run all compatible tools against the target
     extra_args = [target] if target else []
 
     results = []
-    for tool in tools:
+    for tool in compatible_tools:
         result = run_tool(
             tool,
             get_tools_dir() / tool.name,
