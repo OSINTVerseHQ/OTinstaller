@@ -54,7 +54,7 @@ from otinstaller.registry import (
     suggest_names,
 )
 from otinstaller.results import RunMeta, results_paths, write_meta
-from otinstaller.runner import run_tool, run_tools_parallel
+from otinstaller.runner import is_secret_flag, run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 
 
@@ -273,6 +273,35 @@ def _parse_typed_inputs(args: list[str]) -> tuple[dict[str, str], list[str]]:
                 continue
         remaining.append(arg)
     return typed_inputs, remaining
+
+
+def _pick_target(
+    target: str | None, typed_inputs: dict[str, str], remaining_args: list[str]
+) -> str:
+    """Choose the target that names the results folder."""
+    if target is not None:
+        return target
+    if typed_inputs:
+        return next(iter(typed_inputs.values()))
+    # Never name a results folder after a cookie or token passed on the command line.
+    skip_next = False
+    for arg in remaining_args:
+        if skip_next:
+            skip_next = False
+            continue
+        if is_secret_flag(arg):
+            skip_next = "=" not in arg
+            continue
+        if not arg.startswith("-"):
+            return arg
+    if remaining_args and not is_secret_flag(remaining_args[0]):
+        return remaining_args[0]
+    return "unspecified"
+
+
+def _use_pty(tool, *, verbose: bool, stdin_tty: bool, stdout_tty: bool) -> bool:
+    """Run on a pseudo-terminal when the user is at one and needs to see the tool."""
+    return stdin_tty and stdout_tty and (tool.interactive or verbose)
 
 
 def _build_tool_args(tool, typed_inputs: dict[str, str]) -> list[str]:
@@ -1136,16 +1165,7 @@ def run(
             typer.echo(f"error: no selected tool supports input type '{prefix}'", err=True)
             raise typer.Exit(code=2)
 
-    # Determine target (same for all tools)
-    if target is not None:
-        run_target = target
-    elif remaining_args:
-        run_target = remaining_args[0]
-    elif typed_inputs:
-        # Use the first typed input value as target
-        run_target = next(iter(typed_inputs.values()))
-    else:
-        run_target = "unspecified"
+    run_target = _pick_target(target, typed_inputs, remaining_args)
 
     # Prepare roots dict
     roots = {name: get_tools_dir() / name for name, _t in tools}
@@ -1161,7 +1181,10 @@ def run(
         tool_extra_args.extend(remaining_args)
 
         console = _make_console(no_color)
-        use_spinner = not no_color and sys.stdout.isatty()
+        interactive = _use_pty(
+            t, verbose=verbose, stdin_tty=sys.stdin.isatty(), stdout_tty=sys.stdout.isatty()
+        )
+        use_spinner = not no_color and sys.stdout.isatty() and not interactive
 
         # Compute expected output path for interrupt message
         expected_output_path, _ = results_paths(name, run_target, case)
@@ -1177,6 +1200,7 @@ def run(
                         case=case,
                         env_overrides=None,
                         stream=verbose,
+                        interactive=interactive,
                     )
             else:
                 typer.echo(f"running {name}...")
@@ -1188,6 +1212,7 @@ def run(
                     case=case,
                     env_overrides=None,
                     stream=verbose,
+                    interactive=interactive,
                 )
 
             meta.tool_version = installed.version

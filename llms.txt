@@ -55,7 +55,7 @@ otinstaller install sherlock maigret --yes
 ### Run tools with typed inputs
 `ash
 otinstaller run sherlock -- u:johndoe
-otinstaller run ghunt -- u:johndoe e:john@example.com
+otinstaller run ghunt -- e:john@example.com
 `
 
 ### Run all matching tools (--all / -a)

@@ -98,6 +98,10 @@ class Tool:
     requires_python: str | None = None
     default_args: tuple[str, ...] = ()
     long_running: bool = False
+    # Some git-installed scripts read data files relative to the working directory.
+    run_from_source: bool = False
+    # Tools that prompt for input (logins, menus, setup wizards) need a real terminal.
+    interactive: bool = False
 
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
@@ -107,7 +111,7 @@ _PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _PACKAGE_SPEC_RE = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._-]*"
     r"(\[[A-Za-z0-9,_-]*\])?"
-    r"([<>=!~][A-Za-z0-9.*+-]+(,[<>=!~][A-Za-z0-9.*+-]+)*)?"
+    r"((==|>=|<=|!=|~=|<|>)[A-Za-z0-9.*+-]+(,(==|>=|<=|!=|~=|<|>)[A-Za-z0-9.*+-]+)*)?"
     r"(;.*)?$"
 )
 _VERSION_RE = re.compile(r"^[0-9A-Za-z.!+-]+$")
@@ -317,6 +321,8 @@ def _validate_unknown_keys(data: dict, tool_name: str) -> None:
         "requires_python",
         "default_args",
         "long_running",
+        "run_from_source",
+        "interactive",
     }
     for key in data:
         if key not in known_keys:
@@ -396,6 +402,12 @@ def parse_tool(data: dict) -> Tool:
 
     long_running = data.get("long_running", False)
 
+    run_from_source = data.get("run_from_source", False)
+    if run_from_source and install.method != "git":
+        raise RegistryError(f"tool '{tool_name}': run_from_source needs install.method git")
+
+    interactive = data.get("interactive", False)
+
     return Tool(
         name=data["name"],
         display_name=data["display_name"],
@@ -419,6 +431,8 @@ def parse_tool(data: dict) -> Tool:
         requires_python=requires_python,
         default_args=default_args,
         long_running=long_running,
+        run_from_source=run_from_source,
+        interactive=interactive,
     )
 
 

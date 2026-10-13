@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import BinaryIO
 
 from otinstaller.config import get_results_dir
 from otinstaller.installer.venv import venv_bin, venv_python
@@ -27,17 +29,159 @@ def build_command(tool: Tool, root: Path, extra_args: list[str]) -> list[str]:
         raise ValueError(f"tool {tool.name} has no entrypoint")
 
 
+# Flags whose value is a credential. Tools take cookies, tokens and passwords on the
+# command line, and the full command ends up in .meta.json.
+_SECRET_FLAG_RE = re.compile(
+    r"^--?[A-Za-z0-9_-]*(cookie|token|passw|secret|api[-_]?key|api[-_]?hash|session)[A-Za-z0-9_-]*$",
+    re.IGNORECASE,
+)
+
+
+def is_secret_flag(arg: str) -> bool:
+    return bool(_SECRET_FLAG_RE.match(arg.partition("=")[0]))
+
+
 def _redact_api_keys(command: list[str], tool: Tool) -> list[str]:
-    """Redact API key values from command for meta file."""
-    # API keys are passed via environment, not command line, but just in case
-    redacted = []
+    """Redact credential values from a command before it is written to the meta file."""
+    key_names = tool.api_keys.required + tool.api_keys.optional
+    redacted: list[str] = []
+    hide_next = False
     for arg in command:
-        key_names = tool.api_keys.required + tool.api_keys.optional
-        if any(arg.startswith(f"{key}=") for key in key_names):
+        if hide_next:
+            redacted.append("***")
+            hide_next = False
+            continue
+        flag, sep, _value = arg.partition("=")
+        if sep and _SECRET_FLAG_RE.match(flag):
+            redacted.append(f"{flag}=***")
+        elif any(arg.startswith(f"{key}=") for key in key_names):
             redacted.append("***")
         else:
             redacted.append(arg)
+            hide_next = bool(_SECRET_FLAG_RE.match(arg))
     return redacted
+
+
+def run_in_pty(
+    cmd: list[str],
+    *,
+    env: dict[str, str] | None,
+    cwd: Path | None,
+    sink: BinaryIO,
+    stdin_fd: int | None,
+) -> int:
+    """Run cmd on a pseudo-terminal, copying its output to the terminal and to sink.
+
+    Prompts that do not end in a newline (logins, menus, setup wizards) only show up
+    when the tool writes to a terminal, so interactive tools run this way.
+    """
+    import fcntl
+    import pty
+    import select
+    import termios
+    import tty
+
+    master, slave = pty.openpty()
+    if sys.stdout.isatty():
+        size = fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, b"\0" * 8)
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, size)
+
+    def make_controlling_tty() -> None:
+        os.setsid()
+        fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+    proc = subprocess.Popen(
+        cmd,
+        env=env,
+        cwd=cwd,
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        preexec_fn=make_controlling_tty,
+        close_fds=True,
+    )
+    os.close(slave)
+
+    saved_mode = None
+    if stdin_fd is not None and os.isatty(stdin_fd):
+        saved_mode = termios.tcgetattr(stdin_fd)
+        tty.setraw(stdin_fd)
+
+    readers = [master] if stdin_fd is None else [master, stdin_fd]
+    try:
+        while True:
+            ready, _, _ = select.select(readers, [], [])
+            if master in ready:
+                try:
+                    data = os.read(master, 4096)
+                except OSError:
+                    data = b""
+                if not data:
+                    break
+                sink.write(data)
+                sys.stdout.buffer.write(data)
+                sys.stdout.buffer.flush()
+            if stdin_fd is not None and stdin_fd in ready:
+                data = os.read(stdin_fd, 1024)
+                if data:
+                    os.write(master, data)
+                else:
+                    readers.remove(stdin_fd)
+    finally:
+        if saved_mode is not None:
+            termios.tcsetattr(stdin_fd, termios.TCSADRAIN, saved_mode)
+        os.close(master)
+    return proc.wait()
+
+
+def _run_captured(
+    cmd: list[str],
+    env: dict[str, str],
+    cwd: Path | None,
+    output_path: Path,
+    stream: bool,
+    cancel_event: asyncio.Event | None,
+    job_id: str,
+) -> int:
+    # Run the process in its own process group
+    proc = subprocess.Popen(
+        cmd,
+        env=env,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+
+    try:
+        # Stream output to file (and terminal if stream=True)
+        with output_path.open("wb") as f:
+            if proc.stdout:
+                for line in iter(proc.stdout.readline, b""):
+                    f.write(line)
+                    if stream:
+                        sys.stdout.buffer.write(line)
+                        sys.stdout.buffer.flush()
+                    # Check for cancellation
+                    if cancel_event is not None and cancel_event.is_set():
+                        break
+
+        # Wait for process to complete (or kill if cancelled)
+        if cancel_event is not None and cancel_event.is_set():
+            # Kill the entire process group
+            os.killpg(os.getpgid(proc.pid), 9)  # SIGKILL
+            proc.wait()
+            return -9  # SIGKILL
+        return proc.wait()
+    except KeyboardInterrupt:
+        # Kill the entire process group on interrupt
+        try:
+            os.killpg(os.getpgid(proc.pid), 9)
+        except ProcessLookupError:
+            pass
+        proc.wait()
+        job_end(job_id)
+        raise
 
 
 def run_tool(
@@ -50,8 +194,13 @@ def run_tool(
     env_overrides: dict[str, str] | None,
     stream: bool,
     cancel_event: asyncio.Event | None = None,
+    interactive: bool = False,
 ) -> RunMeta:
-    """Run a tool and return RunMeta. Does not raise on tool exit code."""
+    """Run a tool and return RunMeta. Does not raise on tool exit code.
+
+    interactive=True runs the tool on a pseudo-terminal wired to this terminal;
+    only use it for a single tool when stdin and stdout are terminals.
+    """
     # Determine target
     if target is None:
         target = extra_args[0] if extra_args else "unspecified"
@@ -85,46 +234,15 @@ def run_tool(
     # Open output file for writing
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Run the process in its own process group
-    proc = subprocess.Popen(
-        cmd,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        start_new_session=True,
-    )
+    cwd = root / "src" if tool.run_from_source else None
 
-    try:
-        # Stream output to file (and terminal if stream=True)
+    if interactive:
+        # Ctrl-C reaches the tool through the terminal, so there is no
+        # KeyboardInterrupt to handle here.
         with output_path.open("wb") as f:
-            if proc.stdout:
-                for line in iter(proc.stdout.readline, b""):
-                    f.write(line)
-                    if stream:
-                        sys.stdout.buffer.write(line)
-                        sys.stdout.buffer.flush()
-                    # Check for cancellation
-                    if cancel_event is not None and cancel_event.is_set():
-                        break
-
-        # Wait for process to complete (or kill if cancelled)
-        if cancel_event is not None and cancel_event.is_set():
-            # Kill the entire process group
-            os.killpg(os.getpgid(proc.pid), 9)  # SIGKILL
-            proc.wait()
-            exit_code = -9  # SIGKILL
-        else:
-            exit_code = proc.wait()
-    except KeyboardInterrupt:
-        # Kill the entire process group on interrupt
-        try:
-            os.killpg(os.getpgid(proc.pid), 9)
-        except ProcessLookupError:
-            pass
-        proc.wait()
-        exit_code = -9
-        job_end(marker.job_id)
-        raise
+            exit_code = run_in_pty(cmd, env=env, cwd=cwd, sink=f, stdin_fd=sys.stdin.fileno())
+    else:
+        exit_code = _run_captured(cmd, env, cwd, output_path, stream, cancel_event, marker.job_id)
 
     ended_at = datetime.now(timezone.utc)
     ended_at_str = ended_at.isoformat()

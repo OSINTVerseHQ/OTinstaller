@@ -635,3 +635,102 @@ def test_bundled_registry_all_entries_parse_and_pass_denylist():
             denied.append((tool.name, reason))
 
     assert denied == [], f"Denied tools found: {denied}"
+
+
+def test_parse_run_from_source_and_interactive():
+    from otinstaller.registry import parse_tool
+
+    tool = parse_tool(
+        {
+            "name": "scripty",
+            "display_name": "Scripty",
+            "description": "Script tool",
+            "install": {
+                "method": "git",
+                "url": "https://github.com/a/b",
+                "ref": "main",
+                "requirements": "requirements.txt",
+            },
+            "entrypoint": {"script": "scripty.py"},
+            "run_from_source": True,
+            "interactive": True,
+        }
+    )
+    assert tool.run_from_source is True
+    assert tool.interactive is True
+
+
+def test_run_from_source_requires_git_install():
+    from otinstaller.registry import RegistryError, parse_tool
+
+    with pytest.raises(RegistryError, match="run_from_source"):
+        parse_tool(
+            {
+                "name": "piptool",
+                "display_name": "Pip tool",
+                "description": "Pip tool",
+                "install": {"method": "pip", "package": "piptool"},
+                "entrypoint": {"command": "piptool"},
+                "run_from_source": True,
+            }
+        )
+
+
+def test_bundled_registry_fixes_for_held_back_tools():
+    from otinstaller.registry import load_registry
+
+    path = Path(__file__).parent.parent / "src" / "otinstaller" / "data" / "registry.yaml"
+    by_name = {t.name: t for t in load_registry(path)}
+
+    ghunt = by_name["ghunt"]
+    assert ghunt.default_args == ()
+    assert ghunt.input_types["e"] == "email"
+    assert ghunt.interactive
+
+    assert by_name["blackbird"].run_from_source
+    assert any(p.startswith("dnstwist[full]") for p in by_name["dnstwist"].install.extra_packages)
+    assert by_name["osint-brazuca-regex"].requires_python == ">=3.12"
+    assert by_name["auto-archiver"].api_keys.required == ()
+    interactive = (
+        "fsociety",
+        "instagram-monitor",
+        "telegram-phone-number-checker",
+        "whatsapp-osint",
+    )
+    for name in interactive:
+        assert by_name[name].interactive, name
+
+
+@pytest.mark.parametrize(
+    "spec",
+    ["dnstwist[full]==20250130", "requests>=2.31", "pkg>=1.0,<2", "pkg~=1.4", "pkg!=1.2", "pkg"],
+)
+def test_extra_packages_accept_pinned_specs(spec):
+    from otinstaller.registry import parse_tool
+
+    tool = parse_tool(
+        {
+            "name": "piptool",
+            "display_name": "Pip tool",
+            "description": "Pip tool",
+            "install": {"method": "pip", "package": "piptool", "extra_packages": [spec]},
+            "entrypoint": {"command": "piptool"},
+        }
+    )
+    assert tool.install.extra_packages == (spec,)
+
+
+@pytest.mark.parametrize("spec", ["-e git+https://x", "pkg==1.0 --index-url x", "pkg=1.0"])
+def test_extra_packages_reject_bad_specs(spec):
+    from otinstaller.registry import RegistryError, parse_tool
+
+    with pytest.raises(RegistryError):
+        parse_tool(
+            {
+                "name": "piptool",
+                "display_name": "Pip tool",
+                "description": "Pip tool",
+                "install": {"method": "pip", "package": "piptool", "extra_packages": [spec]},
+                "entrypoint": {"command": "piptool"},
+            }
+        )

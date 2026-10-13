@@ -628,3 +628,117 @@ async def test_run_tools_parallel_status_queue_tool_raises(monkeypatch, tmp_path
     events = _drain(queue)
     assert [e[0] for e in events] == ["running", "error"]
     assert results[0].status == "failed"
+
+
+def test_redact_secret_flag_values():
+    from otinstaller.runner import _redact_api_keys
+
+    tool = make_fake_tool("faketool", optional=("SHODAN_API_KEY",))
+    cmd = [
+        "/venv/bin/faketool",
+        "--cookie",
+        "sessionid=abc123",
+        "--api-hash=deadbeef",
+        "--lat",
+        "32.22",
+        "SHODAN_API_KEY=xyz",
+        "--password",
+        "hunter2",
+        "--token=t0k",
+    ]
+    redacted = _redact_api_keys(cmd, tool)
+    joined = " ".join(redacted)
+    for secret in ("sessionid=abc123", "deadbeef", "xyz", "hunter2", "t0k"):
+        assert secret not in joined
+    assert redacted[:2] == ["/venv/bin/faketool", "--cookie"]
+    assert "--api-hash=***" in redacted
+    assert ["--lat", "32.22"] == redacted[4:6]
+
+
+def test_redact_keeps_flag_at_end_of_argv():
+    from otinstaller.runner import _redact_api_keys
+
+    tool = make_fake_tool("faketool")
+    assert _redact_api_keys(["tool", "--cookie"], tool) == ["tool", "--cookie"]
+
+
+def test_run_tool_from_source_sets_cwd(tmp_path):
+    tool = Tool(
+        name="scripty",
+        display_name="Scripty",
+        description="Fake script tool",
+        install=Install(method="git", url="https://github.com/a/b", ref="main"),
+        entrypoint=Entrypoint(script="scripty.py"),
+        run_from_source=True,
+    )
+    root = tmp_path / "scripty"
+    (root / "src").mkdir(parents=True)
+
+    with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline = MagicMock(side_effect=[b""])
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+        run_tool(tool, root, [], target="t", case=None, env_overrides=None, stream=False)
+
+    assert mock_popen.call_args.kwargs["cwd"] == root / "src"
+
+
+def test_run_tool_default_cwd_is_callers(tmp_path):
+    tool = make_fake_tool("faketool")
+    root = tmp_path / "faketool"
+    root.mkdir()
+
+    with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline = MagicMock(side_effect=[b""])
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+        run_tool(tool, root, [], target="t", case=None, env_overrides=None, stream=False)
+
+    assert mock_popen.call_args.kwargs.get("cwd") is None
+
+
+def test_run_in_pty_child_sees_a_terminal(tmp_path):
+    import sys
+
+    from otinstaller.runner import run_in_pty
+
+    out = tmp_path / "out.txt"
+    code = "import sys; print(sys.stdin.isatty(), sys.stdout.isatty())"
+    with out.open("wb") as f:
+        rc = run_in_pty([sys.executable, "-c", code], env=None, cwd=None, sink=f, stdin_fd=None)
+    assert rc == 0
+    assert b"True True" in out.read_bytes()
+
+
+def test_run_in_pty_forwards_input_and_shows_prompt(tmp_path):
+    import os
+    import sys
+
+    from otinstaller.runner import run_in_pty
+
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, b"alice\n")
+    os.close(write_fd)
+    out = tmp_path / "out.txt"
+    code = "name = input('name? '); print('hello', name)"
+    with out.open("wb") as f:
+        rc = run_in_pty([sys.executable, "-c", code], env=None, cwd=None, sink=f, stdin_fd=read_fd)
+    os.close(read_fd)
+    data = out.read_bytes()
+    assert rc == 0
+    assert b"name? " in data
+    assert b"hello alice" in data
+
+
+def test_run_in_pty_returns_tool_exit_code(tmp_path):
+    import sys
+
+    from otinstaller.runner import run_in_pty
+
+    with (tmp_path / "out.txt").open("wb") as f:
+        rc = run_in_pty(
+            [sys.executable, "-c", "raise SystemExit(3)"], env=None, cwd=None, sink=f, stdin_fd=None
+        )
+    assert rc == 3
