@@ -29,6 +29,11 @@ The source of truth is `src/otinstaller/data/registry.yaml` (packaged with the w
 | example | string | no | Relative path to sample output file |
 | verified | object | no | Verification info, see below |
 | accepts | list[string] | no | Target types this tool accepts (see below) |
+| input_types | map | no | Typed input prefix to the tool's flag, e.g. `u: --username`. An empty string passes the value as a positional argument; a word such as `email` passes it after that subcommand |
+| default_args | list[string] | no | Arguments always placed before the user's arguments |
+| long_running | boolean | no | Tool monitors until stopped; left out of `--all` and `auto` |
+| run_from_source | boolean | no | Git tools only. Run from the tool's checkout instead of the current directory, for scripts that read data files by relative path (default: false) |
+| interactive | boolean | no | Tool prompts for input (logins, menus, setup wizards). Single runs on a terminal then use a pseudo-terminal so prompts are visible (default: false) |
 
 ## Accepts field
 
@@ -58,6 +63,7 @@ install:
 Validation:
 - `package` required, regex `^[A-Za-z0-9][A-Za-z0-9._-]*$`
 - `version` optional, regex `^[0-9A-Za-z.!+-]+$`
+- `extra_packages` optional list of pip specs installed after the package, e.g. `dnstwist[full]==20250130` to pull in a package's extras
 - `url`, `ref`, `requirements`, `as_package` must not be set
 
 ### Git method

@@ -65,9 +65,8 @@ tools:
   accepts:
   - email
   input_types:
-    e: ''
-  default_args:
-  - email
+    e: email
+  interactive: true
   needs_config: true
 - name: theharvester
   display_name: theHarvester
@@ -163,7 +162,7 @@ tools:
   install:
     method: pip
     package: instaloader
-    version: 4.15.3
+    version: 4.15.4
   entrypoint:
     command: instaloader
   smoke_args:
@@ -181,10 +180,10 @@ tools:
     required: []
     optional: []
   verified:
-    date: '2026-09-24'
-    version: 4.15.3
-    os: Ubuntu 26.04 LTS
-    python: 3.12.14
+    date: '2026-10-13'
+    version: 4.15.4
+    os: Ubuntu 24.04.5 LTS
+    python: 3.12.3
   accepts:
   - username
   - url
@@ -316,6 +315,8 @@ tools:
     method: pip
     package: dnstwist
     version: '20250130'
+    extra_packages:
+    - dnstwist[full]==20250130
   entrypoint:
     command: dnstwist
   smoke_args:
@@ -772,6 +773,7 @@ tools:
   api_keys:
     required: []
     optional: []
+  interactive: true
   verified:
     date: '2026-09-24'
     version: 3.2.9
@@ -940,6 +942,7 @@ tools:
     optional: []
   needs_config: true
   long_running: true
+  interactive: true
   verified:
     date: '2026-09-24'
     version: 2.0.1
@@ -975,6 +978,7 @@ tools:
     required: []
     optional: []
   long_running: true
+  interactive: true
   verified:
     date: '2026-09-24'
     version: 4.0.2
@@ -994,7 +998,7 @@ tools:
   install:
     method: pip
     package: mailaccess
-    version: 0.18.5
+    version: 0.18.6
   entrypoint:
     command: mailaccess
   smoke_args:
@@ -1010,9 +1014,9 @@ tools:
     required: []
     optional: []
   verified:
-    date: '2026-10-12'
-    version: 0.18.5
-    os: Ubuntu 24.04 LTS
+    date: '2026-10-13'
+    version: 0.18.6
+    os: Ubuntu 24.04.5 LTS
     python: 3.12.3
   accepts:
   - email
@@ -1248,6 +1252,7 @@ tools:
   license: MIT
   stars: 1012
   tier: community
+  requires_python: '>=3.12'
   install:
     method: git
     url: https://github.com/osintbrazuca/osint-brazuca-regex.git
@@ -1462,6 +1467,7 @@ tools:
   input_types:
     u: --username
     e: --email
+  run_from_source: true
   example: examples/blackbird.txt
 - name: telegram-phone-number-checker
   display_name: Telegram Phone Number Checker
@@ -1491,6 +1497,7 @@ tools:
     - TELEGRAM_API_HASH
     optional: []
   needs_config: true
+  interactive: true
   verified:
     date: '2026-09-24'
     version: 1.2.2
@@ -1526,10 +1533,10 @@ tools:
   - archiving
   - web
   api_keys:
-    required:
+    required: []
+    optional:
     - GOOGLE_API_KEY
     - GOOGLE_CREDENTIALS
-    optional:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
   needs_config: true
