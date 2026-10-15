@@ -742,3 +742,33 @@ def test_run_in_pty_returns_tool_exit_code(tmp_path):
             [sys.executable, "-c", "raise SystemExit(3)"], env=None, cwd=None, sink=f, stdin_fd=None
         )
     assert rc == 3
+
+
+def test_run_tool_reports_missing_command_without_traceback(monkeypatch, tmp_path, capsys):
+    """A broken install (command missing) gives exit 127 and a reinstall hint, not a crash."""
+    from otinstaller.registry import Entrypoint, Install, Tool
+    from otinstaller.runner import run_tool
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(tmp_path / "results"))
+    tool = Tool(
+        name="ghosttool",
+        display_name="Ghost",
+        description="x",
+        install=Install(method="pip", package="ghosttool"),
+        entrypoint=Entrypoint(command="ghosttool"),
+    )
+    meta = run_tool(
+        tool,
+        tmp_path / "tools" / "ghosttool",
+        ["--help"],
+        target=None,
+        case=None,
+        env_overrides=None,
+        stream=False,
+    )
+    assert meta.exit_code == 127
+    assert meta.status == "failed"
+    err = capsys.readouterr().err
+    assert "could not start" in err
+    assert "otinstaller install ghosttool --force" in err
