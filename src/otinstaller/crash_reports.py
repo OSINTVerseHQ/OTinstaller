@@ -25,7 +25,7 @@ from pathlib import Path
 from otinstaller.config import get_home
 
 # The maintainers' Sentry project. Empty means crash reports are never sent.
-SENTRY_DSN = ""
+SENTRY_DSN = "https://2603ace50faa78d2a81521294feda773@o4512260870176768.ingest.us.sentry.io/4512261029953536"
 
 _ON = {"1", "on", "true", "yes"}
 _OFF = {"0", "off", "false", "no"}
