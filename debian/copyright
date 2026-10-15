@@ -1,0 +1,30 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: otinstaller
+Upstream-Contact: OSINTVerse <sushant@osintverse.com>
+Source: https://github.com/OSINTVerseHQ/OTinstaller
+
+Files: *
+Copyright: 2026 OSINTVerse and the otinstaller contributors
+License: Apache-2.0
+Comment: Releases up to and including 0.0.4 were MIT-licensed. The NOTICE file
+ must be kept with redistributions.
+
+Files: debian/*
+Copyright: 2026 Sushant Koul <sushant@osintverse.com>
+License: Apache-2.0
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+ https://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ .
+ On Debian systems, the complete text of the Apache License, Version 2.0
+ can be found in "/usr/share/common-licenses/Apache-2.0".
