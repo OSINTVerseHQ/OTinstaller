@@ -1017,7 +1017,11 @@ def run(
         bool, typer.Option("--all", "-a", help="Run all installed tools supporting the input types")
     ] = False,
     include_credentialed: Annotated[
-        bool, typer.Option("--include-credentialed", help="Include tools that require credentials")
+        bool,
+        typer.Option(
+            "--include-credentialed",
+            help="Include tools that need API keys or setup (needs_config: true)",
+        ),
     ] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
     live: Annotated[
@@ -1107,8 +1111,11 @@ def run(
             supports_any = any(prefix in t.input_types for prefix in typed_inputs)
             if not supports_any:
                 continue
+            # Interactive tools wait for terminal input, which a captured multi-tool run can't give
+            if t.interactive:
+                continue
             # Check credentials requirement
-            if t.api_keys.required and not include_credentialed:
+            if (t.api_keys.required or t.needs_config) and not include_credentialed:
                 continue
             tools.append((name, t))
 
