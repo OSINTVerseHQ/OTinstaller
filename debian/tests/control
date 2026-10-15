@@ -1,0 +1,3 @@
+Test-Command: export HOME="$AUTOPKGTEST_TMP" DO_NOT_TRACK=1; otinstaller --version && otinstaller init --yes && otinstaller list && otinstaller info sherlock && ot --version
+Depends: @
+Restrictions: superficial
