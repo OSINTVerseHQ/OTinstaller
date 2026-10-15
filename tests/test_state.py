@@ -1296,3 +1296,101 @@ def test_update_summary_counts_mixed(monkeypatch, tmp_path):
     assert "2 updated" in result.output
     assert "1 pinned" in result.output
     assert "1 failed" in result.output
+
+
+def _installed(name, version, method, source, ref=None):
+    from datetime import datetime, timezone
+
+    from otinstaller.state import InstalledTool, add_installed
+
+    now = datetime.now(timezone.utc).isoformat()
+    add_installed(
+        InstalledTool(
+            name=name,
+            version=version,
+            method=method,
+            source=source,
+            ref=ref,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+    )
+
+
+def _check_only(tools):
+    from typer.testing import CliRunner
+
+    from otinstaller.cli import app
+
+    def no_network(*a, **k):
+        raise AssertionError("pinned tools must not be compared with PyPI or git HEAD")
+
+    with patch("otinstaller.installer.core.get_latest_pip_version", side_effect=no_network):
+        with patch("otinstaller.installer.core.get_latest_git_ref", side_effect=no_network):
+            with patch("otinstaller.registry.load_registry", return_value=tools):
+                return CliRunner().invoke(app, ["update", "--all", "--check-only"])
+
+
+def test_update_follows_registry_pin_not_pypi_latest(monkeypatch, tmp_path):
+    """A pinned tool is outdated only when the registry pins another version."""
+    from otinstaller.registry import Entrypoint, Install, Tool
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.platform", "linux")
+    _installed("same", "1.0", "pip", "samepkg")
+    _installed("older", "1.0", "pip", "olderpkg")
+    tools = [
+        Tool(
+            name="same",
+            display_name="s",
+            description="s",
+            install=Install(method="pip", package="samepkg", version="1.0"),
+            entrypoint=Entrypoint(command="same"),
+        ),
+        Tool(
+            name="older",
+            display_name="o",
+            description="o",
+            install=Install(method="pip", package="olderpkg", version="1.2"),
+            entrypoint=Entrypoint(command="older"),
+        ),
+    ]
+    result = _check_only(tools)
+    assert result.exit_code == 0, result.output
+    assert "same is already up to date" in result.output
+    assert "older: 1.0 -> 1.2 available" in result.output
+
+
+def test_update_reinstalls_when_registry_moves_tool_to_git(monkeypatch, tmp_path):
+    """sublist3r was installed from PyPI before 0.1.0 and from git after."""
+    from otinstaller.registry import Entrypoint, Install, Tool
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.platform", "linux")
+    _installed("sublist3r", "1.0", "pip", "sublist3r")
+    _installed("gitpinned", "aaaaaaaaaaaa", "git", "https://example.com/r.git", ref="a" * 40)
+    tools = [
+        Tool(
+            name="sublist3r",
+            display_name="s",
+            description="s",
+            install=Install(
+                method="git", url="https://example.com/s.git", ref="b" * 40, as_package=True
+            ),
+            entrypoint=Entrypoint(command="sublist3r"),
+        ),
+        Tool(
+            name="gitpinned",
+            display_name="g",
+            description="g",
+            install=Install(method="git", url="https://example.com/r.git", ref="c" * 40),
+            entrypoint=Entrypoint(script="g.py"),
+        ),
+    ]
+    result = _check_only(tools)
+    assert result.exit_code == 0, result.output
+    assert "sublist3r: 1.0 (pip) -> bbbbbbbbbbbb available" in result.output
+    assert "gitpinned: aaaaaaaaaaaa -> cccccccccccc available" in result.output
