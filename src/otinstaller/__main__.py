@@ -1,4 +1,4 @@
-from otinstaller.cli import app
+from otinstaller.cli import run_cli
 
 if __name__ == "__main__":
-    app()
+    run_cli()
