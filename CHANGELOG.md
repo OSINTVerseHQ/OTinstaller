@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-10-15
 
+### Added
+- Opt-in crash reports through Sentry. Off unless you say yes: `otinstaller init` (or the first `install` on a terminal) asks once and Enter means no; `--yes`, scripts and pipes never turn them on. A report is sent only when otinstaller itself crashes, never for a tool's own failure, and holds the error type, a cleaned message, where in otinstaller's code it happened and the otinstaller, Python and OS versions. Targets, arguments, tool output, results, API keys, file paths, host and user names are never sent. `otinstaller crash-reports on|off` changes it, `DO_NOT_TRACK=1` or `OTINSTALLER_CRASH_REPORTS=off` always turns it off, and `doctor` shows the setting
+- `debian/` packaging, for Kali and other Debian-based distributions
+
 ### Changed
 - License changed from MIT to Apache License 2.0, with a NOTICE file that redistributions and derived works must keep, crediting OSINTverse. Releases up to and including 0.0.4 stay under MIT.
 - `otinstaller install` (and `playbook`) on a terminal now shows the responsible-use notice and asks, the same as `init`, instead of stopping with "run 'otinstaller init' first". Scripts, pipes and `--json` runs still need `otinstaller init --yes`; the notice is never accepted for you
@@ -17,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New tool virtualenvs upgrade pip before installing anything. If that fails (an offline mirror, say), the bundled pip is used as before
 - Playbooks ship with the package. A `playbooks` folder in the current directory still works and overrides a bundled playbook with the same name
 - `auto` gained `--include-credentialed` and `--type phone`
+- Dependencies: typer `>=0.20,<1` instead of exactly 0.27.2, click `>=8.1`, and sentry-sdk `>=2.0,<3`, so the versions Debian and Kali ship work
 
 ### Fixed
 - telegram-phone-number-checker: keys from `~/.otinstaller/.env` now reach the tool. It reads `API_ID`, `API_HASH` and `PHONE_NUMBER`, but the registry declared `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`, so the values were never passed. The keys are optional, because the tool asks for them when they are not set
