@@ -198,3 +198,14 @@ def test_init_with_yes_never_turns_crash_reports_on():
     assert result.exit_code == 0
     assert not crash_reports.was_asked()
     assert not crash_reports.is_enabled()
+
+
+def test_crash_reports_test_command(monkeypatch):
+    sent = []
+    monkeypatch.setattr(crash_reports, "report", lambda exc, cmd=None: sent.append(str(exc)))
+    assert runner.invoke(app, ["crash-reports", "test"]).exit_code == 1  # off
+    assert not sent
+    crash_reports.set_enabled(True)
+    result = runner.invoke(app, ["crash-reports", "test"])
+    assert result.exit_code == 0
+    assert sent and "test report" in sent[0]
