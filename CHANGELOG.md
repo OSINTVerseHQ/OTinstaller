@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Opt-in crash reports through Sentry. Off unless you say yes: `otinstaller init` (or the first `install` on a terminal) asks once and Enter means no; `--yes`, scripts and pipes never turn them on. A report is sent only when otinstaller itself crashes, never for a tool's own failure, and holds the error type, a cleaned message, where in otinstaller's code it happened and the otinstaller, Python and OS versions. Targets, arguments, tool output, results, API keys, file paths, host and user names are never sent. `otinstaller crash-reports on|off` changes it, `DO_NOT_TRACK=1` or `OTINSTALLER_CRASH_REPORTS=off` always turns it off, and `doctor` shows the setting
 - `debian/` packaging, for Kali and other Debian-based distributions
+- Python 3.13 and 3.14 support. Every tool was installed and run on 3.10, 3.12, 3.13 and 3.14; the few that need another Python say so before installing. `doctor` now lists those tools as a note instead of a problem
+- `otinstaller crash-reports test` sends a test report, to check the setup
 
 ### Changed
 - License changed from MIT to Apache License 2.0, with a NOTICE file that redistributions and derived works must keep, crediting OSINTverse. Releases up to and including 0.0.4 stay under MIT.
@@ -33,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `install --verbose` reported a tool as installed even when a step failed (spiderfoot's requirements on Python 3.13, for example). A failed step now stops the install, as it does without `--verbose`
 - On Python 3.10 with the pip that venv bundles, packages without a `pyproject.toml` (ivre) were installed with a `#!python` first line, so their command couldn't start. Upgrading pip first fixes it
 - `run` crashed with a traceback when a tool's command was missing. It now exits 127 and says to reinstall with `--force`
-- Python version limits for tools that can't install or start outside them: theHarvester needs 3.12+ (its current release requires it), whatsapp-osint needs 3.11+ (it imports `datetime.UTC`), spiderfoot needs 3.12 or older (its pinned lxml and cryptography have no wheels for 3.13). otinstaller now says so before installing, instead of failing in pip
+- Python version limits for tools that can't install or start outside them: GHunt needs 3.13 or older (its pinned Pillow 10 has no wheels for 3.14), theHarvester needs 3.12+ (its current release requires it), whatsapp-osint needs 3.11+ (it imports `datetime.UTC`), spiderfoot needs 3.12 or older (its pinned lxml and cryptography have no wheels for 3.13). otinstaller now says so before installing, instead of failing in pip
 - dnsgen no longer claims a `d:` input. It reads a file of domains, so `d:example.com` failed; run it as `otinstaller run dnsgen -- domains.txt`
 - edgar-tool's `d:` input passed the domain as a subcommand name, which edgar rejects. `q:` (a text search) is unchanged
 - sitedorks asks a question before opening browser tabs, which was invisible in a captured run. It is now marked `interactive`, so it runs on a terminal
