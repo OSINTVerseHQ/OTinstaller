@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://github.com/OSINTVerseHQ/OTinstaller/actions/workflows/ci.yml"><img src="https://github.com/OSINTVerseHQ/OTinstaller/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/otinstaller/"><img src="https://img.shields.io/pypi/v/otinstaller" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python 3.10 to 3.12">
+  <img src="https://img.shields.io/badge/python-3.10%20to%203.14-blue" alt="Python 3.10 to 3.14">
   <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Linux">
   <a href="https://github.com/OSINTVerseHQ/OTinstaller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 license"></a>
   <a href="https://github.com/OSINTVerseHQ/OTinstaller/stargazers"><img src="https://img.shields.io/github/stars/OSINTVerseHQ/OTinstaller?style=flat" alt="GitHub stars"></a>
@@ -87,21 +87,21 @@ ot run sherlock -- u:johndoe
   <img src="https://raw.githubusercontent.com/OSINTVerseHQ/OTinstaller/main/docs/images/otinstaller-demo.png" alt="Installing and running a tool with OTinstaller" width="820">
 </p>
 
-The full install options, including Python 3.13+ systems, are below.
+The full install options are below.
 
 ## Requirements
 
-A Linux machine. Tested on Ubuntu 22.04 and 24.04, Debian 12, and Arch Linux. Kali Linux is checked by hand before a release.
+A Linux machine. Tested on Ubuntu 22.04 and 24.04, Debian 12, Arch Linux and Kali Linux (rolling).
 
-Python 3.10 to 3.12, git, and the `venv` module. On Debian, Ubuntu and Kali, install that module with:
+Python 3.10 to 3.14, git, and the `venv` module. On Debian, Ubuntu and Kali, install that module with:
 
 ```bash
 sudo apt install python3-venv git
 ```
 
-### Ubuntu 26.04 LTS and other systems with Python 3.13+
+### Tools that need an older Python
 
-Ubuntu 26.04 LTS ships Python 3.14 by default, and other distributions now ship Python 3.13+ too. otinstaller and some of its managed tools require Python 3.10–3.12, so on these systems install Python 3.12 explicitly and run otinstaller inside a virtualenv made with it:
+Ubuntu 26.04 LTS and Kali ship Python 3.14, and otinstaller itself runs on it. A few managed tools only install on an older Python (listed below). To use them, run otinstaller inside a Python 3.12 virtualenv:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -111,21 +111,19 @@ source ~/.otinstaller-venv/bin/activate
 uv pip install otinstaller
 ```
 
-A uv-created virtualenv has no pip, so the install command is `uv pip install otinstaller`. Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before using otinstaller. `otinstaller doctor` prints the Python version it is running under and flags any registered tool that needs a different one.
-
-The system Python on Ubuntu 22.04 and 24.04 already works. The uv method was tested on Ubuntu 26.04 only.
+A uv-created virtualenv has no pip, so the install command is `uv pip install otinstaller`. Run `source ~/.otinstaller-venv/bin/activate` again in any new terminal before using otinstaller. `otinstaller doctor` prints the Python version it is running under and lists any registered tool that needs a different one.
 
 ### Python version caveats
 
-Some managed tools only work on some Python versions. otinstaller checks before installing them and says which version to use, and `otinstaller doctor` lists the ones that won't install on your Python. The test matrix covers Python 3.10–3.12. Known limits:
+Some managed tools only work on some Python versions. otinstaller checks before installing them and says which version to use, and `otinstaller doctor` lists the ones that won't install on your Python. Every tool was installed and run on Python 3.10, 3.12, 3.13 and 3.14 before 0.1.0. Known limits:
 
+- `ghunt`: requires Python <3.14 (its dependency Pillow 10 has no wheels for 3.14 and needs the libjpeg headers to compile)
 - `auto-archiver`: requires Python <3.13 (dependency `pdqhash` needs a C++ compiler, no wheel for 3.13+)
 - `telepathy`: requires Python <3.13 (dependency `googletrans`/`httpx` uses removed `cgi` module)
 - `spiderfoot`: requires Python <3.13 (its pinned `lxml` and `cryptography` have no wheels for 3.13+)
 - `theharvester`: requires Python 3.12 or newer (its current release, 4.11.1, needs it)
 - `whatsapp-osint`: requires Python 3.11 or newer (it imports `datetime.UTC`)
 
-If you encounter install failures on Python 3.13+, run otinstaller in a Python 3.12 virtualenv.
 
 ## Install OTinstaller
 
@@ -402,7 +400,7 @@ On Windows, yes, inside WSL2 with Ubuntu. macOS is not tested yet, and most of t
 No. Root is only needed once, for `sudo apt install python3-venv git`. Everything else lives in your home directory under `~/.otinstaller/`.
 
 **Does OTinstaller send my data anywhere?**
-OTinstaller itself contacts GitHub and PyPI to install and update tools. It has no usage tracking. Crash reports are off unless you say yes: `otinstaller init` asks once, and Enter means no. If you turn them on, a report is sent only when otinstaller itself crashes, and it holds the error, where in otinstaller's code it happened, and the otinstaller, Python and OS versions, never your targets, command arguments, tool output, results, API keys, file paths or user name. Turn them on or off with `otinstaller crash-reports on` or `off`; `DO_NOT_TRACK=1` or `OTINSTALLER_CRASH_REPORTS=off` always turns them off. The tools you run contact the services they are built to query.
+OTinstaller itself contacts GitHub and PyPI to install and update tools. It has no usage tracking. Crash reports are off unless you say yes: `otinstaller init` asks once, and Enter means no. If you turn them on, a report is sent only when otinstaller itself crashes, and it holds the error, where in otinstaller's code it happened, and the otinstaller, Python and OS versions, never your targets, command arguments, tool output, results, API keys, file paths or user name. Turn them on or off with `otinstaller crash-reports on` or `off`, and send a test report with `otinstaller crash-reports test`; `DO_NOT_TRACK=1` or `OTINSTALLER_CRASH_REPORTS=off` always turns them off. The tools you run contact the services they are built to query.
 
 **How do I uninstall it?**
 `ot remove --all` removes every tool, then `pipx uninstall otinstaller` removes OTinstaller itself. `rm -rf ~/.otinstaller` deletes the config, the API key file and the logs. Results stay wherever you ran your commands.
