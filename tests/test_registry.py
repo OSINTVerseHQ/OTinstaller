@@ -1,6 +1,5 @@
 """Registry tests."""
 
-import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -853,14 +852,17 @@ def test_registry_contract_all_tools_have_smoke_args():
 
 
 @pytest.mark.network
-def test_registry_contract_installed_tools_accept_input_types():
-    """Contract test: run each installed tool with each input type and dummy value.
+def test_registry_contract_installed_tools_accept_input_types(tmp_path):
+    """Contract test: run each installed tool with each of its typed inputs and a dummy value.
 
-    Fails if tool exits with code 2 or prints 'unrecognized arguments',
-    'no such option', 'invalid choice', 'Missing argument'.
+    Builds the command exactly as `otinstaller run tool -- prefix:value` does, and fails
+    if the tool rejects the arguments ('unrecognized arguments', 'no such option', a
+    usage error with exit code 2, ...). Network failures and timeouts don't count: the
+    point is that the flags exist. Runs against the tools installed in OTINSTALLER_HOME.
     """
-
-    from otinstaller.cli import default_registry_path, load_registry
+    from otinstaller.cli import _build_tool_args, default_registry_path, load_registry
+    from otinstaller.config import get_tools_dir
+    from otinstaller.runner import build_command
 
     installed = list_installed()
     if not installed:
@@ -869,88 +871,64 @@ def test_registry_contract_installed_tools_accept_input_types():
     registry = load_registry(default_registry_path())
     tools_by_name = {t.name: t for t in registry}
 
-    # Dummy values for each input type
-    dummy_values = {
-        "username": "testuser",
-        "email": "test@example.com",
-        "domain": "example.com",
-        "ip": "8.8.8.8",
-        "phone": "+15551234567",
+    dummy_by_prefix = {
+        "u": "testuser",
+        "e": "test@example.com",
+        "d": "example.com",
+        "p": "+15551234567",
         "url": "https://example.com",
-        "name": "Test Name",
+        "q": "example",
+        "tg": "durov",
     }
 
     forbidden_patterns = [
         "unrecognized arguments",
         "no such option",
+        "No such option",
+        "No such command",
         "invalid choice",
         "Missing argument",
         "missing argument",
     ]
 
+    checked = 0
     for tool_state in installed:
         tool = tools_by_name.get(tool_state.name)
         if not tool:
             continue
-
-        # Map input_types to dummy values
-        for prefix, flag in tool.input_types.items():
-            # Map prefix to target type
-            prefix_to_type = {
-                "u": "username",
-                "e": "email",
-                "d": "domain",
-                "p": "phone",
-                "url": "url",
-                "q": "domain",
-                "geo": "domain",
-                "tg": "username",
-                "lat": "domain",
-                "lng": "domain",
-            }
-            target_type = prefix_to_type.get(prefix)
-            if not target_type or target_type not in dummy_values:
+        root = get_tools_dir() / tool.name
+        for prefix in tool.input_types or {}:
+            dummy = dummy_by_prefix.get(prefix)
+            if dummy is None:
                 continue
-            if target_type not in tool.accepts:
-                continue
-
-            dummy = dummy_values[target_type]
-            home = os.environ.get("OTINSTALLER_HOME", "~/.otinstaller")
-            tool_dir = Path(home).expanduser() / "tools" / tool.name
-
-            # Build command
-            if tool.entrypoint.command:
-                cmd = [str(tool_dir / "bin" / tool.entrypoint.command), flag, dummy]
-            elif tool.entrypoint.script:
-                venv_python = tool_dir / "bin" / "python"
-                script_path = tool_dir / tool.entrypoint.script
-                cmd = [str(venv_python), str(script_path), flag, dummy]
-            else:
-                continue
-
-            # Run with network disabled
-            env = os.environ.copy()
-            env["NO_NETWORK"] = "1"
-
+            flag = tool.input_types[prefix]
+            cmd = build_command(tool, root, _build_tool_args(tool, {prefix: dummy}))
+            cwd = root / "src" if tool.run_from_source else tmp_path
             try:
                 result = subprocess.run(
                     cmd,
-                    cwd=tool_dir,
+                    cwd=cwd,
+                    stdin=subprocess.DEVNULL,
                     capture_output=True,
                     text=True,
+                    errors="replace",
                     timeout=30,
-                    env=env,
                 )
-            except (subprocess.TimeoutExpired, FileNotFoundError):
+            except subprocess.TimeoutExpired:
+                checked += 1  # still running: the arguments were accepted
                 continue
+            checked += 1
 
-            # Check for forbidden patterns
             output = result.stdout + result.stderr
             for pattern in forbidden_patterns:
                 assert pattern not in output, (
                     f"{tool.name} ({flag} {dummy}): "
                     f"found forbidden pattern '{pattern}' in output: {output[:500]}"
                 )
-            assert result.returncode != 2, (
-                f"{tool.name} ({flag} {dummy}): exited with code 2, output: {output[:500]}"
-            )
+            # Tools that need a login or keys exit 2 when those are missing; that's setup,
+            # not a wrong flag.
+            if not (tool.needs_config or tool.api_keys.required):
+                assert result.returncode != 2, (
+                    f"{tool.name} ({flag} {dummy}): exited with code 2, output: {output[:500]}"
+                )
+    assert checked, "no installed tool has a typed input to check"

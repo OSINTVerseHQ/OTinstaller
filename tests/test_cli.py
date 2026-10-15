@@ -22,7 +22,7 @@ runner = CliRunner()
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "otinstaller 0.0.4" in result.output
+    assert "otinstaller 0.1.0" in result.output
 
 
 def test_help_contains_commands():
@@ -2556,6 +2556,7 @@ def test_auto_filters_to_installed_matching_tools(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
             Tool(
                 name="tool2",
@@ -2567,6 +2568,7 @@ def test_auto_filters_to_installed_matching_tools(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("domain",),
+                input_types={"d": ""},
             ),
             Tool(
                 name="tool3",
@@ -2578,6 +2580,7 @@ def test_auto_filters_to_installed_matching_tools(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username", "domain"),
+                input_types={"u": "", "d": ""},
             ),
         ]
 
@@ -2650,6 +2653,7 @@ def test_auto_reports_not_installed_separately(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
             Tool(
                 name="not_installed_tool",
@@ -2661,6 +2665,7 @@ def test_auto_reports_not_installed_separately(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
         ]
 
@@ -2731,6 +2736,7 @@ def test_auto_zero_matching_installed_tools(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
         ]
 
@@ -2783,6 +2789,7 @@ def test_auto_dry_run_makes_no_calls(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
         ]
 
@@ -2849,6 +2856,7 @@ def test_auto_without_yes_no_tty_refuses(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
         ]
 
@@ -2919,6 +2927,7 @@ def test_auto_calls_run_tools_parallel_correctly(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
             Tool(
                 name="tool2",
@@ -2930,6 +2939,7 @@ def test_auto_calls_run_tools_parallel_correctly(monkeypatch, tmp_path):
                 capabilities=[],
                 tier="community",
                 accepts=("username",),
+                input_types={"u": ""},
             ),
         ]
 
@@ -3433,6 +3443,7 @@ def test_playbook_skips_incompatible_tool(monkeypatch, tmp_path):
             "entrypoint": {"command": "sherlock"},
             "capabilities": ["username-search"],
             "accepts": ["username"],
+            "input_types": {"u": ""},
         },
         {
             "name": "holehe",
@@ -3442,6 +3453,7 @@ def test_playbook_skips_incompatible_tool(monkeypatch, tmp_path):
             "entrypoint": {"command": "holehe"},
             "capabilities": ["email-search"],
             "accepts": ["email"],
+            "input_types": {"e": ""},
         },
     ]
     reg = make_registry_yaml(tmp_path, tools)
@@ -3552,6 +3564,7 @@ def test_playbook_no_compatible_tools_exits_2(monkeypatch, tmp_path):
             "entrypoint": {"command": "holehe"},
             "capabilities": ["email-search"],
             "accepts": ["email"],
+            "input_types": {"e": ""},
         },
     ]
     reg = make_registry_yaml(tmp_path, tools)

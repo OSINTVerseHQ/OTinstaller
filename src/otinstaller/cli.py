@@ -324,6 +324,33 @@ def _build_tool_args(tool, typed_inputs: dict[str, str]) -> list[str]:
     return args
 
 
+# Target type from detect_target_type (or --type) -> typed-input prefix
+_TARGET_TYPE_PREFIX = {"username": "u", "email": "e", "domain": "d", "url": "url", "phone": "p"}
+
+
+def _target_tool_args(tool, target_type: str, target: str) -> list[str] | None:
+    """Arguments that give target to tool, or None if the tool can't take this target type.
+
+    auto and playbooks pass the target the same way as a typed input, so a tool that
+    needs a flag (theHarvester --domain, h8mail -t) gets it, and default_args are kept.
+    """
+    prefix = _TARGET_TYPE_PREFIX.get(target_type)
+    if prefix is None or prefix not in (tool.input_types or {}):
+        return None
+    return _build_tool_args(tool, {prefix: target})
+
+
+def _unattended_skip_reason(tool, include_credentialed: bool) -> str | None:
+    """Why a tool can't run in a multi-tool run (auto, run --all, playbooks), or None."""
+    if tool.interactive:
+        return "asks questions while it runs; run it on its own"
+    if tool.long_running:
+        return "monitors continuously and does not exit; run it on its own"
+    if (tool.api_keys.required or tool.needs_config) and not include_credentialed:
+        return "needs API keys or setup; pass --include-credentialed"
+    return None
+
+
 def _show_tool_info(
     tool, json_output: bool = False, no_color: bool = False, verbose: bool = False
 ) -> None:
@@ -605,6 +632,54 @@ def info(
         console.print(line)
 
 
+def _ensure_env_file(json_output: bool = False) -> tuple[Path, bool]:
+    """Create ~/.otinstaller/.env with mode 600, or fix its mode. Returns (path, created)."""
+    env_file = get_env_file()
+    env_content = (
+        "# API keys for tools managed by otinstaller.\n"
+        "# Add one KEY=value per line. Keep this file private.\n"
+    )
+    if not env_file.exists():
+        env_file.write_text(env_content)
+        os.chmod(env_file, 0o600)
+        return env_file, True
+    try:
+        if env_file.stat().st_mode & 0o777 != 0o600:
+            os.chmod(env_file, 0o600)
+            if not json_output:
+                typer.echo(f"fixed permissions on {env_file}")
+    except OSError:
+        pass
+    return env_file, False
+
+
+def _require_notice(no_color: bool = False, json_output: bool = False) -> None:
+    """Make sure the responsible-use notice has been accepted before installing or running.
+
+    On a terminal this shows the notice and asks, the same as ``otinstaller init``,
+    so a new user can go straight to ``otinstaller install``. Scripts, pipes and
+    ``--json`` runs never accept it implicitly: they get an error that says how.
+    """
+    if has_accepted():
+        return
+    if json_output or not (sys.stdin.isatty() and sys.stdout.isatty()):
+        typer.echo(
+            "error: run 'otinstaller init' first (use 'otinstaller init --yes' in scripts)",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    ensure_dir(get_home())
+    ensure_dir(get_tools_dir())
+    ensure_dir(get_logs_dir())
+    _make_console(no_color).print(NOTICE_TEXT)
+    answer = typer.prompt("Do you accept? [y/N]", default="n", show_default=False)
+    if answer.lower() != "y":
+        typer.echo("notice not accepted", err=True)
+        raise typer.Exit(code=1)
+    record_acceptance()
+    _ensure_env_file()
+
+
 @app.command(name="install")
 def install(
     names: Annotated[list[str], typer.Argument(help="Tool names to install")] = None,
@@ -630,9 +705,7 @@ def install(
     if sys.platform != "linux":
         typer.echo("error: otinstaller currently supports Linux only", err=True)
         raise typer.Exit(code=1)
-    if not has_accepted():
-        typer.echo("error: run 'otinstaller init' first", err=True)
-        raise typer.Exit(code=1)
+    _require_notice(no_color, json_output)
 
     tools_registry = _load_registry(verbose)
 
@@ -714,7 +787,7 @@ def install(
             if not sys.stdin.isatty():
                 typer.echo("error: confirmation needed, run with --yes", err=True)
                 raise typer.Exit(code=1)
-            answer = typer.prompt("Continue? [y/N]", default="n")
+            answer = typer.prompt("Continue? [y/N]", default="n", show_default=False)
             if answer.lower() != "y":
                 typer.echo("cancelled")
                 raise typer.Exit(code=1)
@@ -740,7 +813,7 @@ def install(
             if not sys.stdin.isatty():
                 typer.echo("error: confirmation needed, run with --yes", err=True)
                 raise typer.Exit(code=1)
-            answer = typer.prompt("Install? [y/N]", default="n")
+            answer = typer.prompt("Install? [y/N]", default="n", show_default=False)
             if answer.lower() != "y":
                 typer.echo("cancelled")
                 raise typer.Exit(code=1)
@@ -874,7 +947,7 @@ def remove(
         if not sys.stdin.isatty():
             typer.echo("error: confirmation needed, run with --yes", err=True)
             raise typer.Exit(code=1)
-        answer = typer.prompt("Remove? [y/N]", default="n")
+        answer = typer.prompt("Remove? [y/N]", default="n", show_default=False)
         if answer.lower() != "y":
             typer.echo("cancelled")
             raise typer.Exit(code=1)
@@ -1397,18 +1470,32 @@ def _check_updates(
         latest_version: str | None = None
         error: str | None = None
 
+        # Installed another way than the registry now says (sublist3r moved from PyPI to
+        # git in 0.1.0): reinstall from the registry.
+        method_changed = installed.method != tool.install.method
+
         if tool.install.method == "pip":
             package = tool.install.package
             if not package:
                 error = "no package name in registry"
+            elif tool.install.version:
+                # Pinned: "update" means the version this registry tested, not PyPI's latest
+                latest_version = tool.install.version
+                if method_changed or installed.source != package:
+                    current_version = f"{current_version} ({installed.method})"
             else:
                 latest_version = get_latest_pip_version(package)
                 if latest_version is None:
                     error = "could not check for updates"
 
         elif tool.install.method == "git":
+            if tool.install.ref and (method_changed or installed.ref != tool.install.ref):
+                # The registry pins a different commit (or installed from PyPI before)
+                latest_version = tool.install.ref[:12]
+                if method_changed:
+                    current_version = f"{current_version} ({installed.method})"
             # Check if tool has a pinned ref
-            if tool.install.ref:
+            elif tool.install.ref:
                 # Pinned tool - no automatic update check
                 pinned_count += 1
                 detail_lines.append(f"{name}: pinned at {current_version}, skip")
@@ -1810,7 +1897,9 @@ def auto(
     ] = None,
     type: Annotated[
         str | None,
-        typer.Option("--type", help="Override target type: email, domain, ip, url, username"),
+        typer.Option(
+            "--type", help="Override target type: email, domain, ip, url, username, phone"
+        ),
     ] = None,
     parallel: Annotated[
         int, typer.Option("--parallel", "-p", help="Max concurrent tools (default: 4)")
@@ -1820,6 +1909,13 @@ def auto(
     ] = None,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Show which tools would run without executing")
+    ] = False,
+    include_credentialed: Annotated[
+        bool,
+        typer.Option(
+            "--include-credentialed",
+            help="Include tools that need API keys or setup (needs_config: true)",
+        ),
     ] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
     no_color: Annotated[bool, typer.Option("--no-color", help="Disable colored output")] = False,
@@ -1836,7 +1932,7 @@ def auto(
     from otinstaller.state import get_installed
 
     # Validate type override
-    valid_types = {"email", "domain", "ip", "url", "username"}
+    valid_types = {"email", "domain", "ip", "url", "username", "phone"}
     if type and type not in valid_types:
         types_str = ", ".join(sorted(valid_types))
         typer.echo(f"error: invalid type '{type}', must be one of: {types_str}", err=True)
@@ -1857,7 +1953,19 @@ def auto(
 
     # Load registry and find matching tools
     tools_registry = load_registry(default_registry_path())
-    matching_tools = [t for t in tools_registry if detected_type in t.accepts]
+    tool_args: dict[str, list[str]] = {}
+    matching_tools = []
+    for t in tools_registry:
+        args = _target_tool_args(t, detected_type, target)
+        if args is None:
+            continue
+        reason = _unattended_skip_reason(t, include_credentialed)
+        if reason:
+            if not json_output and get_installed(t.name):
+                typer.echo(f"skipping {t.name}: {reason}")
+            continue
+        tool_args[t.name] = args
+        matching_tools.append(t)
 
     if not matching_tools:
         if json_output:
@@ -1932,7 +2040,7 @@ def auto(
             typer.echo("note: the following matching tools are not installed and will be skipped:")
             for t in not_installed_matching:
                 typer.echo(f"  {t.name}")
-        answer = typer.prompt("Run? [y/N]", default="n")
+        answer = typer.prompt("Run? [y/N]", default="n", show_default=False)
         if answer.lower() != "y":
             typer.echo("cancelled")
             raise typer.Exit(code=1)
@@ -1941,7 +2049,7 @@ def auto(
     # We need Tool objects from the registry (with .entrypoint), not InstalledTool objects
     # Map installed tool names back to their full Tool objects from the registry
     installed_tool_names = set(installed_matching.keys())
-    tool_list = [t for t in matching_tools if t.name in installed_tool_names and not t.long_running]
+    tool_list = [t for t in matching_tools if t.name in installed_tool_names]
     roots = {t.name: get_tools_dir() / t.name for t in tool_list}
 
     try:
@@ -1949,7 +2057,7 @@ def auto(
             run_tools_parallel(
                 tool_list,
                 roots,
-                [target],  # pass target as extra_args so build_command includes it
+                {t.name: tool_args[t.name] for t in tool_list},
                 target=target,
                 case=case,
                 max_parallel=parallel,
@@ -2098,34 +2206,14 @@ def init(
             if not sys.stdin.isatty():
                 typer.echo("error: confirmation needed, run with --yes", err=True)
                 raise typer.Exit(code=1)
-            answer = typer.prompt("Do you accept? [y/N]", default="n")
+            answer = typer.prompt("Do you accept? [y/N]", default="n", show_default=False)
             if answer.lower() != "y":
                 typer.echo("notice not accepted", err=True)
                 raise typer.Exit(code=1)
         record_acceptance()
         notice_accepted = True
 
-    # Handle .env file
-    env_file = get_env_file()
-    env_content = (
-        "# API keys for tools managed by otinstaller.\n"
-        "# Add one KEY=value per line. Keep this file private.\n"
-    )
-    env_created = False
-    if not env_file.exists():
-        env_file.write_text(env_content)
-        os.chmod(env_file, 0o600)
-        env_created = True
-    else:
-        # Fix permissions if needed
-        try:
-            current_mode = env_file.stat().st_mode & 0o777
-            if current_mode != 0o600:
-                os.chmod(env_file, 0o600)
-                if not json_output:
-                    typer.echo(f"fixed permissions on {env_file}")
-        except OSError:
-            pass
+    env_file, env_created = _ensure_env_file(json_output)
 
     if json_output:
         import json
@@ -2405,6 +2493,20 @@ def resume(
         raise typer.Exit(code=1)
 
 
+def _playbook_files() -> list[Path]:
+    """Bundled playbooks, plus any in ./playbooks (which win on a name clash)."""
+    import importlib.resources
+
+    found: dict[str, Path] = {}
+    bundled = importlib.resources.files("otinstaller") / "data" / "playbooks"
+    local = Path("playbooks")
+    for folder in (Path(str(bundled)), local):
+        if folder.is_dir():
+            for pf in sorted(folder.glob("*.yaml")) + sorted(folder.glob("*.yml")):
+                found[pf.stem] = pf
+    return [found[k] for k in sorted(found)]
+
+
 @app.command(name="playbook")
 def playbook(
     name: Annotated[str | None, typer.Argument(help="Playbook name to run")] = None,
@@ -2423,18 +2525,11 @@ def playbook(
         typer.echo("error: otinstaller currently supports Linux only", err=True)
         raise typer.Exit(code=1)
 
-    if not has_accepted():
-        typer.echo("error: run 'otinstaller init' first", err=True)
-        raise typer.Exit(code=1)
+    _require_notice(no_color, json_output)
 
     import yaml
 
-    playbook_dir = Path("playbooks")
-    if not playbook_dir.exists():
-        typer.echo("error: no playbooks directory found", err=True)
-        raise typer.Exit(code=1)
-
-    playbook_files = sorted(playbook_dir.glob("*.yaml")) + sorted(playbook_dir.glob("*.yml"))
+    playbook_files = _playbook_files()
 
     if list_all or name is None:
         if not playbook_files:
@@ -2461,11 +2556,7 @@ def playbook(
         return
 
     # Find the playbook
-    pb_path = None
-    for pf in playbook_files:
-        if pf.stem == name:
-            pb_path = pf
-            break
+    pb_path = next((pf for pf in playbook_files if pf.stem == name), None)
 
     if not pb_path:
         typer.echo(f"error: playbook '{name}' not found", err=True)
@@ -2492,17 +2583,24 @@ def playbook(
     tools = [find_tool(tools_registry, t) for t in pb.get("tools", [])]
     tools = [t for t in tools if t]
 
-    # Filter tools by target type compatibility
+    # Filter tools by target type compatibility, building each tool's own arguments
     detected_type = detect_target_type(target) if target else None
     compatible_tools = []
-    if detected_type:
-        for tool in tools:
-            if detected_type in tool.accepts:
-                compatible_tools.append(tool)
-            else:
+    tool_args: dict[str, list[str]] = {}
+    for tool in tools:
+        if detected_type:
+            args = _target_tool_args(tool, detected_type, target)
+            if args is None:
                 typer.echo(f"skipping {tool.name}: does not support '{detected_type}' targets")
-    else:
-        compatible_tools = tools
+                continue
+        else:
+            args = list(tool.default_args)
+        reason = _unattended_skip_reason(tool, include_credentialed=True)
+        if reason:
+            typer.echo(f"skipping {tool.name}: {reason}")
+            continue
+        tool_args[tool.name] = args
+        compatible_tools.append(tool)
 
     if not compatible_tools:
         typer.echo("error: no compatible tools for this target type", err=True)
@@ -2514,20 +2612,21 @@ def playbook(
         typer.echo(f"Running playbook '{name}' on target: {target or 'N/A'}")
 
     # Run all compatible tools against the target
-    extra_args = [target] if target else []
-
+    installed_versions = {t.name: t.version for t in installed}
     results = []
     for tool in compatible_tools:
         result = run_tool(
             tool,
             get_tools_dir() / tool.name,
-            extra_args,
+            tool_args[tool.name],
             target=target or "unspecified",
             case=case,
             env_overrides=None,
             stream=False,
             cancel_event=None,
         )
+        result.tool_version = installed_versions.get(tool.name, "")
+        write_meta(result, get_results_dir() / Path(result.output_path).with_suffix(".meta.json"))
         results.append(result)
 
     if json_output:

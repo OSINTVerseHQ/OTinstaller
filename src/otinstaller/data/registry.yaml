@@ -78,6 +78,7 @@ tools:
     url: https://github.com/laramies/theHarvester.git
     ref: fd832dee7936458a4f6e2029bf37ba6797228676
     as_package: true
+  requires_python: '>=3.12'
   entrypoint:
     command: theHarvester
   smoke_args:
@@ -114,6 +115,7 @@ tools:
     url: https://github.com/smicallef/spiderfoot.git
     ref: 0f815a203afebf05c98b605dba5cf0475a0ee5fd
     requirements: requirements.txt
+  requires_python: '<3.13'
   entrypoint:
     script: sf.py
   smoke_args:
@@ -927,6 +929,7 @@ tools:
     method: pip
     package: whatsapp-osint
     version: 2.0.1
+  requires_python: '>=3.11'
   entrypoint:
     command: whatsapp-beacon
   smoke_args:
@@ -1080,9 +1083,10 @@ tools:
   stars: 8500
   tier: community
   install:
-    method: pip
-    package: sublist3r
-    version: '1.0'
+    method: git
+    url: https://github.com/aboul3la/Sublist3r.git
+    ref: 729d649ec5370730172bf6f5314aafd68c874124
+    as_package: true
   entrypoint:
     command: sublist3r
   smoke_args:
@@ -1173,8 +1177,6 @@ tools:
     python: 3.12.14
   accepts:
   - domain
-  input_types:
-    d: ''
 - name: sitedorks
   display_name: Sitedorks
   description: Search Google/Bing/Ecosia/DuckDuckGo/Yandex/Yahoo for a search term (dork) with a default set of websites, bug bounty programs or custom collection.
@@ -1201,6 +1203,7 @@ tools:
   api_keys:
     required: []
     optional: []
+  interactive: true
   verified:
     date: '2026-09-24'
     version: afa236d
@@ -1587,10 +1590,8 @@ tools:
     python: 3.12.14
   accepts:
   - name
-  - domain
   input_types:
     q: text-search
-    d: ''
   example: examples/edgar-tool.txt
 - name: instagram-location-search
   display_name: Instagram Location Search
@@ -1666,10 +1667,8 @@ tools:
     python: 3.12.14
   accepts:
   - username
-  - phone
   input_types:
-    u: --username
-    p: --phone
+    tg: -t
   example: examples/telepathy.txt
 - name: neutrosint
   display_name: NeutrOSINT

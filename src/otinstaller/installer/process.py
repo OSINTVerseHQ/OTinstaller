@@ -29,7 +29,7 @@ def _run_with_cleanup(
     cwd: Path | None = None,
     timeout: int = 900,
     stream: bool = False,
-) -> subprocess.CompletedProcess | None:
+) -> subprocess.CompletedProcess:
     """Run a command with proper cleanup on KeyboardInterrupt.
 
     Creates the child in its own process group so we can kill it and all its
@@ -54,8 +54,10 @@ def _run_with_cleanup(
 
     try:
         if stream:
+            # Output went to the terminal, so there is nothing to capture, but the
+            # exit code still decides whether the step failed.
             proc.wait(timeout=timeout)
-            return None
+            return subprocess.CompletedProcess(args, proc.returncode, None, None)
         else:
             stdout, stderr = proc.communicate(timeout=timeout)
             return subprocess.CompletedProcess(args, proc.returncode, stdout, stderr)
@@ -87,12 +89,13 @@ def run(
 ) -> None:
     """Run a command, logging output to a file."""
     result = _run_with_cleanup(args, log=log, cwd=cwd, timeout=timeout, stream=stream)
-    if result is not None:
-        with log.open("a", encoding="utf-8", errors="replace") as f:
-            f.write(result.stdout or "")
-            f.write(result.stderr or "")
-        if result.returncode != 0:
-            _raise_from_log(args[0], log)
+    with log.open("a", encoding="utf-8", errors="replace") as f:
+        f.write(result.stdout or "")
+        f.write(result.stderr or "")
+        if stream and result.returncode != 0:
+            f.write(f"(exit code {result.returncode}; output was shown on the terminal)\n")
+    if result.returncode != 0:
+        _raise_from_log(args[0], log)
 
 
 def run_capture(

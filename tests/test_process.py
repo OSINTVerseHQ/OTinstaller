@@ -59,3 +59,16 @@ def test_env_vars_set(monkeypatch, tmp_path):
     lines = output.strip().split("\n")
     assert lines[0] == "0"
     assert lines[1] == "1"
+
+
+def test_run_streamed_failure_raises(tmp_path):
+    """--verbose streams output to the terminal; a failed step must still stop the install."""
+    log = tmp_path / "test.log"
+    with pytest.raises(InstallError) as exc:
+        run(["python3", "-c", "import sys; sys.exit(3)"], log=log, stream=True)
+    assert "exit code 3" in str(exc.value)
+
+
+def test_run_streamed_success(tmp_path):
+    log = tmp_path / "test.log"
+    run(["python3", "-c", "print('ok')"], log=log, stream=True)
