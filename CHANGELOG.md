@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - License changed from MIT to Apache License 2.0, with a NOTICE file that redistributions and derived works must keep, crediting OSINTverse. Releases up to and including 0.0.4 stay under MIT.
 
+### Fixed
+- telegram-phone-number-checker: keys from `~/.otinstaller/.env` now reach the tool. It reads `API_ID`, `API_HASH` and `PHONE_NUMBER`, but the registry declared `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`, so the values were never passed. The keys are optional, because the tool asks for them when they are not set
+- telepathy no longer lists `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` as required. It never read them: it asks for its credentials on the first run and stores them itself, so it is now marked `interactive`
+- `run --all` leaves out interactive tools, which would wait for input that a captured run can't give, and tools marked `needs_config` unless `--include-credentialed` is passed
+
 ## [0.0.4] - 2026-10-13
 
 ### Added
