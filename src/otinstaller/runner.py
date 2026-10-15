@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import os
 import re
 import subprocess
@@ -236,13 +237,32 @@ def run_tool(
 
     cwd = root / "src" if tool.run_from_source else None
 
-    if interactive:
-        # Ctrl-C reaches the tool through the terminal, so there is no
-        # KeyboardInterrupt to handle here.
-        with output_path.open("wb") as f:
-            exit_code = run_in_pty(cmd, env=env, cwd=cwd, sink=f, stdin_fd=sys.stdin.fileno())
-    else:
-        exit_code = _run_captured(cmd, env, cwd, output_path, stream, cancel_event, marker.job_id)
+    try:
+        if interactive:
+            # Ctrl-C reaches the tool through the terminal, so there is no
+            # KeyboardInterrupt to handle here.
+            with output_path.open("wb") as f:
+                exit_code = run_in_pty(cmd, env=env, cwd=cwd, sink=f, stdin_fd=sys.stdin.fileno())
+        else:
+            exit_code = _run_captured(
+                cmd, env, cwd, output_path, stream, cancel_event, marker.job_id
+            )
+    except OSError as exc:
+        # The tool's command is missing or can't be executed (a broken or partial
+        # install). Report it like a shell would (exit 127) instead of a traceback.
+        # Other OS errors (a full disk, say) are not about the command: re-raise them.
+        cannot_start = exc.filename in (cmd[0], None) and (
+            isinstance(exc, (FileNotFoundError, PermissionError)) or exc.errno == errno.ENOEXEC
+        )
+        if not cannot_start:
+            raise
+        message = (
+            f"error: {tool.name}: could not start {cmd[0]}: {exc.strerror or exc}. "
+            f"Reinstall it with 'otinstaller install {tool.name} --force'\n"
+        )
+        sys.stderr.write(message)
+        output_path.write_text(message)
+        exit_code = 127
 
     ended_at = datetime.now(timezone.utc)
     ended_at_str = ended_at.isoformat()
