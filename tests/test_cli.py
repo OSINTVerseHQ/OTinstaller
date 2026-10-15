@@ -3679,3 +3679,83 @@ def test_pick_target_never_uses_secret_values():
     assert _pick_target(None, {}, args) == "32.22"
     assert _pick_target(None, {}, ["--token=abc"]) == "unspecified"
     assert _pick_target(None, {}, ["--api-hash", "deadbeef"]) == "unspecified"
+
+
+def _all_mode_registry(tmp_path):
+    def entry(name, **extra):
+        base = {
+            "name": name,
+            "display_name": name,
+            "description": name,
+            "install": {"method": "pip", "package": name},
+            "entrypoint": {"command": name},
+            "input_types": {"p": "--phone"},
+        }
+        base.update(extra)
+        return base
+
+    return make_registry_yaml(
+        tmp_path,
+        [
+            entry("plaintool"),
+            entry("prompttool", interactive=True),
+            entry("setuptool", needs_config=True),
+            entry("keytool", api_keys={"required": ["KEYTOOL_TOKEN"], "optional": []}),
+        ],
+    )
+
+
+def _all_mode_selected(monkeypatch, tmp_path, flags):
+    import datetime
+
+    from otinstaller.state import InstalledTool
+
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("OTINSTALLER_REGISTRY", str(_all_mode_registry(tmp_path)))
+    runner.invoke(app, ["init", "--yes"])
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    def installed(name):
+        return InstalledTool(
+            name=name,
+            version="1.0",
+            method="pip",
+            source=name,
+            ref=None,
+            commit=None,
+            entry_command=name,
+            entry_script=None,
+            installed_at=now,
+            updated_at=now,
+        )
+
+    names = ["plaintool", "prompttool", "setuptool", "keytool"]
+    selected = []
+
+    def fake_parallel(tools, *args, **kwargs):
+        selected.extend(t.name for t in tools)
+        return []
+
+    def fake_single(tool, *args, **kwargs):
+        selected.append(tool.name)
+        raise SystemExit(0)
+
+    with patch("otinstaller.cli.list_installed", return_value=[installed(n) for n in names]):
+        with patch("otinstaller.cli.get_installed", side_effect=installed):
+            with patch("otinstaller.cli.run_tools_parallel", side_effect=fake_parallel):
+                with patch("otinstaller.cli.run_tool", side_effect=fake_single):
+                    with patch("otinstaller.cli.write_meta"):
+                        runner.invoke(app, ["run", "--all", *flags, "--", "p:+15555550100"])
+    return sorted(selected)
+
+
+def test_run_all_skips_interactive_and_setup_tools(monkeypatch, tmp_path):
+    """--all leaves out tools that prompt or need setup, unless credentialed tools are asked for."""
+    assert _all_mode_selected(monkeypatch, tmp_path, []) == ["plaintool"]
+
+
+def test_run_all_include_credentialed_still_skips_interactive(monkeypatch, tmp_path):
+    selected = _all_mode_selected(monkeypatch, tmp_path, ["--include-credentialed"])
+    assert selected == ["keytool", "plaintool", "setuptool"]

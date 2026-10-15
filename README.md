@@ -209,7 +209,7 @@ otinstaller run --all u:johndoe
 otinstaller run --all --live e:john@example.com
 ```
 
-`--all` runs every installed tool that supports the given input type. Only `u`, `e`, `p`, `d` and `url` work with `--all`. Tools that need API keys or a login are skipped unless `--include-credentialed` is passed. Tools that monitor a target continuously (such as `instagram-monitor`) never run under `--all` or `auto`, because they do not exit on their own.
+`--all` runs every installed tool that supports the given input type. Only `u`, `e`, `p`, `d` and `url` work with `--all`. Tools that need API keys or a login are skipped unless `--include-credentialed` is passed, and tools that ask questions while they run (such as `ghunt login` or the fsociety menu) are always skipped; run those on their own. Tools that monitor a target continuously (such as `instagram-monitor`) never run under `--all` or `auto`, because they do not exit on their own.
 
 `otinstaller auto <target>` detects whether the target is an email, domain, IP, URL or username and runs the matching tools.
 
