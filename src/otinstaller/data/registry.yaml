@@ -1495,10 +1495,11 @@ tools:
   - phone
   - telegram
   api_keys:
-    required:
-    - TELEGRAM_API_ID
-    - TELEGRAM_API_HASH
-    optional: []
+    required: []
+    optional:
+    - API_ID
+    - API_HASH
+    - PHONE_NUMBER
   needs_config: true
   interactive: true
   verified:
@@ -1654,11 +1655,10 @@ tools:
   - chat
   - osint
   api_keys:
-    required:
-    - TELEGRAM_API_ID
-    - TELEGRAM_API_HASH
+    required: []
     optional: []
   needs_config: true
+  interactive: true
   verified:
     date: '2026-09-24'
     version: 2.3.4
