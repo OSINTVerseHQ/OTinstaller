@@ -69,3 +69,31 @@ jobs:
         run: .venv/bin/pytest
         env:
           RUN_NETWORK_TESTS: "0"
+  test-kali:
+    # Kali Linux: build the Debian package with Kali's own Python libraries,
+    # run the test suite during the build, then install the .deb and use it
+    runs-on: ubuntu-24.04
+    container: kalilinux/kali-rolling
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies from Kali
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential debhelper dh-python pybuild-plugin-pyproject python3-all \
+            python3-hatchling python3-click python3-rich python3-sentry-sdk python3-typer \
+            python3-yaml python3-pytest python3-pytest-asyncio python3-requests git python3-venv
+          python3 --version
+          dpkg -l python3-typer python3-click python3-rich python3-sentry-sdk | tail -4
+      - name: Build the package (runs the tests)
+        run: dpkg-buildpackage -us -uc -b
+      - name: Install the package and use it
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get install -y ../otinstaller_*_all.deb
+          export HOME="$(mktemp -d)" DO_NOT_TRACK=1
+          otinstaller --version
+          ot --version
+          otinstaller init --yes
+          otinstaller doctor || true
+          otinstaller install sherlock -y
+          otinstaller run sherlock -- --version
