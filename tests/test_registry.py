@@ -701,6 +701,23 @@ def test_bundled_registry_fixes_for_held_back_tools():
         assert by_name[name].interactive, name
 
 
+def test_bundled_registry_telegram_keys_match_tool_env_names():
+    from otinstaller.registry import load_registry
+
+    path = Path(__file__).parent.parent / "src" / "otinstaller" / "data" / "registry.yaml"
+    by_name = {t.name: t for t in load_registry(path)}
+
+    # telegram-phone-number-checker reads API_ID, API_HASH and PHONE_NUMBER and prompts when unset
+    checker = by_name["telegram-phone-number-checker"]
+    assert checker.api_keys.required == ()
+    assert set(checker.api_keys.optional) == {"API_ID", "API_HASH", "PHONE_NUMBER"}
+
+    # telepathy asks for its credentials on the first run and stores them itself
+    telepathy = by_name["telepathy"]
+    assert telepathy.api_keys.required == ()
+    assert telepathy.interactive
+
+
 @pytest.mark.parametrize(
     "spec",
     ["dnstwist[full]==20250130", "requests>=2.31", "pkg>=1.0,<2", "pkg~=1.4", "pkg!=1.2", "pkg"],
