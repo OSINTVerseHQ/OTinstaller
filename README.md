@@ -117,10 +117,13 @@ The system Python on Ubuntu 22.04 and 24.04 already works. The uv method was tes
 
 ### Python version caveats
 
-Some managed tools do not yet support Python 3.13+. The test matrix covers Python 3.10–3.12. Known affected tools:
+Some managed tools only work on some Python versions. otinstaller checks before installing them and says which version to use, and `otinstaller doctor` lists the ones that won't install on your Python. The test matrix covers Python 3.10–3.12. Known limits:
 
 - `auto-archiver`: requires Python <3.13 (dependency `pdqhash` needs a C++ compiler, no wheel for 3.13+)
 - `telepathy`: requires Python <3.13 (dependency `googletrans`/`httpx` uses removed `cgi` module)
+- `spiderfoot`: requires Python <3.13 (its pinned `lxml` and `cryptography` have no wheels for 3.13+)
+- `theharvester`: requires Python 3.12 or newer (its current release, 4.11.1, needs it)
+- `whatsapp-osint`: requires Python 3.11 or newer (it imports `datetime.UTC`)
 
 If you encounter install failures on Python 3.13+, run otinstaller in a Python 3.12 virtualenv.
 
@@ -160,7 +163,7 @@ otinstaller doctor
 
 ## Run your first tool
 
-`init` creates `~/.otinstaller/` and shows a responsible-use notice. It asks `Do you accept? [y/N]`. Type `y` and press Enter. Nothing can be installed until you do.
+`init` creates `~/.otinstaller/` and shows a responsible-use notice. It asks `Do you accept? [y/N]`. Type `y` and press Enter. Nothing can be installed until you do. If you go straight to `otinstaller install`, it shows the same notice and asks the first time. In scripts, run `otinstaller init --yes` first.
 
 ```bash
 otinstaller init
@@ -211,7 +214,9 @@ otinstaller run --all --live e:john@example.com
 
 `--all` runs every installed tool that supports the given input type. Only `u`, `e`, `p`, `d` and `url` work with `--all`. Tools that need API keys or a login are skipped unless `--include-credentialed` is passed, and tools that ask questions while they run (such as `ghunt login` or the fsociety menu) are always skipped; run those on their own. Tools that monitor a target continuously (such as `instagram-monitor`) never run under `--all` or `auto`, because they do not exit on their own.
 
-`otinstaller auto <target>` detects whether the target is an email, domain, IP, URL or username and runs the matching tools.
+`otinstaller auto <target>` detects whether the target is an email, domain, URL or username and runs every installed tool that takes that input, passing it with the tool's own flag, the same way as a typed input. It skips the same tools as `--all`, and `--include-credentialed` works the same way. `--type` overrides the detection, for example `--type phone`. IP addresses are detected, but no tool takes an IP as a typed input yet, so `auto` reports that none match.
+
+`otinstaller playbook --list` shows the playbooks that ship with otinstaller (`domain-recon` and `username-investigation`). To add your own, put YAML files in a `playbooks` folder in the directory you run otinstaller from; a file with the same name as a bundled playbook replaces it.
 
 ## Command reference
 
@@ -231,7 +236,7 @@ otinstaller run --all --live e:john@example.com
 | `otinstaller example <tool>` | Show example output |
 | `otinstaller extract <target>` | Extract indicators from saved results |
 | `otinstaller diff <tool> <target>` | Compare the two most recent runs |
-| `otinstaller update` / `--all` / `--check-only` | Update tools |
+| `otinstaller update` / `--all` / `--check-only` | Bring tools to the version this release of otinstaller pins and tested |
 | `otinstaller check-updates` | Check for updates (read-only) |
 | `otinstaller remove <tool>...` / `--all` | Remove tools |
 | `otinstaller keys check` | Check API keys |
@@ -285,7 +290,7 @@ Tools tagged `dual-use` in the registry print a notice and ask for confirmation 
 ## Tool catalogue
 
 <!-- tool-catalogue:start -->
-The registry ships **47 tools**. By what they accept: 24 username, 14 email, 5 phone, 19 domain, 7 ip address, 11 url, 5 name.
+The registry ships **47 tools**. By what they accept: 24 username, 14 email, 4 phone, 18 domain, 7 ip address, 11 url, 5 name.
 A tool that accepts several input types is listed under the first one.
 
 <details>
@@ -304,7 +309,7 @@ A tool that accepts several input types is listed under the first one.
 | [Openosint](https://github.com/OpenOSINT/OpenOSINT) ([docs](https://osintverse.gitbook.io/otinstaller/tools/openosint)) | AI-powered OSINT agent with interactive REPL, MCP server, and direct CLI modes | args after `--` |  |
 | [Sherlock](https://github.com/sherlock-project/sherlock) ([docs](https://osintverse.gitbook.io/otinstaller/tools/sherlock)) | Hunt down social media accounts by username across social networks | `u:` |  |
 | [Socialscan](https://github.com/iojw/socialscan) ([docs](https://osintverse.gitbook.io/otinstaller/tools/socialscan)) | Python library for accurately querying username and email usage on online platforms | `q:` |  |
-| [Telepathy](https://github.com/prose-intelligence-ltd/Telepathy-Community) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy)) | OSINT toolkit for investigating Telegram chats and accounts | `u:` `p:` | needs a login or API key |
+| [Telepathy](https://github.com/prose-intelligence-ltd/Telepathy-Community) ([docs](https://osintverse.gitbook.io/otinstaller/tools/telepathy)) | OSINT toolkit for investigating Telegram chats and accounts | `tg:` | needs a login or API key |
 | [The Big Brother](https://github.com/chadi0x/TheBigBrother) ([docs](https://osintverse.gitbook.io/otinstaller/tools/thebigbrother)) | Find usernames across social networks | `u:` |  |
 | [User Scanner](https://github.com/kaifcodec/user-scanner) ([docs](https://osintverse.gitbook.io/otinstaller/tools/user-scanner)) | (2-in-1) Email & Username OSINT suite featuring native MCP support for deep data extraction just from a... | `u:` `e:` |  |
 | [Zen](https://github.com/s0md3v/Zen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/zen)) | Find email addresses of GitHub users, repositories and organizations | `u:` `url:` |  |
@@ -343,7 +348,7 @@ A tool that accepts several input types is listed under the first one.
 | --- | --- | --- | --- |
 | [Bbot](https://github.com/blacklanternsecurity/bbot) ([docs](https://osintverse.gitbook.io/otinstaller/tools/bbot)) | The recursive internet scanner for hackers | `d:` |  |
 | [Ctfr](https://github.com/UnaPibaGeek/ctfr) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ctfr)) | Abusing Certificate Transparency logs for getting HTTPS websites subdomains | `d:` |  |
-| [Dnsgen](https://github.com/AlephNullSK/dnsgen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/dnsgen)) | DNSGen is a powerful and flexible DNS name permutation tool designed for security researchers and... | `d:` |  |
+| [Dnsgen](https://github.com/AlephNullSK/dnsgen) ([docs](https://osintverse.gitbook.io/otinstaller/tools/dnsgen)) | DNSGen is a powerful and flexible DNS name permutation tool designed for security researchers and... | args after `--` |  |
 | [Dnstwist](https://github.com/elceef/dnstwist) ([docs](https://osintverse.gitbook.io/otinstaller/tools/dnstwist)) | Domain name permutation engine for detecting homograph phishing attacks, typo squatting, and brand... | `d:` |  |
 | [Fierce](https://github.com/mschwager/fierce) ([docs](https://osintverse.gitbook.io/otinstaller/tools/fierce)) | A DNS reconnaissance tool for locating non-contiguous IP space | `d:` |  |
 | [Finalrecon](https://github.com/thewhiteh4t/FinalRecon) ([docs](https://osintverse.gitbook.io/otinstaller/tools/finalrecon)) | All In One Web Recon | `url:` |  |
@@ -379,7 +384,7 @@ A tool that accepts several input types is listed under the first one.
 
 | Tool | What it does | Typed inputs | Notes |
 | --- | --- | --- | --- |
-| [EDGAR Tool](https://github.com/bellingcat/edgar) ([docs](https://osintverse.gitbook.io/otinstaller/tools/edgar-tool)) | Command line interface to search and retrieve corporate and financial data from the SEC EDGAR database | `q:` `d:` |  |
+| [EDGAR Tool](https://github.com/bellingcat/edgar) ([docs](https://osintverse.gitbook.io/otinstaller/tools/edgar-tool)) | Command line interface to search and retrieve corporate and financial data from the SEC EDGAR database | `q:` |  |
 
 </details>
 
