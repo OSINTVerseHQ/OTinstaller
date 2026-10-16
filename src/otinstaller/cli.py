@@ -275,10 +275,26 @@ def _parse_typed_inputs(args: list[str]) -> tuple[dict[str, str], list[str]]:
     return typed_inputs, remaining
 
 
+def _subcommand_words(tools) -> set[str]:
+    """Subcommands the tools' typed inputs use (investigate, harvest-emails, text-search)."""
+    words = set()
+    for tool in tools:
+        for flag in (tool.input_types or {}).values():
+            words.update(w for w in flag.split() if not w.startswith("-"))
+    return words
+
+
 def _pick_target(
-    target: str | None, typed_inputs: dict[str, str], remaining_args: list[str]
+    target: str | None,
+    typed_inputs: dict[str, str],
+    remaining_args: list[str],
+    subcommands: set[str] | frozenset[str] = frozenset(),
 ) -> str:
-    """Choose the target that names the results folder."""
+    """Choose the target that names the results folder.
+
+    subcommands are skipped, so `-- investigate a@example.com` is saved under the
+    address, not under "investigate".
+    """
     if target is not None:
         return target
     if typed_inputs:
@@ -292,7 +308,7 @@ def _pick_target(
         if is_secret_flag(arg):
             skip_next = "=" not in arg
             continue
-        if not arg.startswith("-"):
+        if not arg.startswith("-") and arg not in subcommands:
             return arg
     if remaining_args and not is_secret_flag(remaining_args[0]):
         return remaining_args[0]
@@ -314,7 +330,8 @@ def _build_tool_args(tool, typed_inputs: dict[str, str]) -> list[str]:
         if prefix in tool.input_types:
             flag = tool.input_types[prefix]
             if flag:
-                args.extend([flag, value])
+                # "harvest-emails --domain" -> harvest-emails --domain <value>
+                args.extend([*flag.split(), value])
             else:
                 # Empty flag means positional argument
                 args.append(value)
@@ -1246,7 +1263,9 @@ def run(
             typer.echo(f"error: no selected tool supports input type '{prefix}'", err=True)
             raise typer.Exit(code=2)
 
-    run_target = _pick_target(target, typed_inputs, remaining_args)
+    run_target = _pick_target(
+        target, typed_inputs, remaining_args, _subcommand_words(t for _, t in tools)
+    )
 
     # Prepare roots dict
     roots = {name: get_tools_dir() / name for name, _t in tools}
