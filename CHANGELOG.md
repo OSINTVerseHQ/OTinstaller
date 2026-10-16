@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `debian/` packaging, for Kali and other Debian-based distributions
 - Python 3.13 and 3.14 support. Every tool was installed and run on 3.10, 3.12, 3.13 and 3.14; the few that need another Python say so before installing. `doctor` now lists those tools as a note instead of a problem
 - `otinstaller crash-reports test` sends a test report, to check the setup
+- MailAccess harvests a domain's email addresses: `otinstaller run mailaccess d:company.com` runs its `harvest-emails --domain company.com`. `e:` still runs an investigation
+- Registry: `playwright_browsers` downloads a tool's Playwright browser into the tool's own folder, and `input_types` can map a typed input to several words, such as a subcommand and its flag
 
 ### Changed
 - License changed from MIT to Apache License 2.0, with a NOTICE file that redistributions and derived works must keep, crediting OSINTverse. Releases up to and including 0.0.4 stay under MIT.
@@ -23,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New tool virtualenvs upgrade pip before installing anything. If that fails (an offline mirror, say), the bundled pip is used as before
 - Playbooks ship with the package. A `playbooks` folder in the current directory still works and overrides a bundled playbook with the same name
 - `auto` gained `--include-credentialed` and `--type phone`
+- MailAccess 0.18.7 (was 0.18.6), installed with its `browser` extra and Chromium's headless shell, so its browser checks run. Without them MailAccess skipped those checks. The install now downloads about 150 MB more and takes about 450 MB more disk
+- MailAccess no longer adds `investigate` to every run, so `otinstaller run mailaccess -- harvest-emails ...` and its other commands work. Plain arguments now need the command: `otinstaller run mailaccess -- investigate you@example.com`
 - Dependencies: typer `>=0.20,<1` instead of exactly 0.27.2, click `>=8.1`, and sentry-sdk `>=2.0,<3`, so the versions Debian and Kali ship work
 
 ### Fixed
