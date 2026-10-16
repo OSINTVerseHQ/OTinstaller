@@ -28,6 +28,12 @@ class Install:
     requirements: str | None = None
     as_package: bool = False
     extra_packages: tuple[str, ...] = ()
+    # Browsers that Playwright downloads into the tool's own folder after install
+    playwright_browsers: tuple[str, ...] = ()
+
+
+# Playwright browsers a tool may ask for. Chromium only for now: it is the one in use.
+PLAYWRIGHT_BROWSERS = ("chromium",)
 
 
 @dataclass(frozen=True)
@@ -213,6 +219,13 @@ def _validate_install(install: Install, tool_name: str) -> None:
                 f"tool '{tool_name}': install.version must not be set for git method"
             )
 
+    for browser in install.playwright_browsers:
+        if browser not in PLAYWRIGHT_BROWSERS:
+            raise RegistryError(
+                f"tool '{tool_name}': install.playwright_browsers entry '{browser}' "
+                f"must be one of {', '.join(PLAYWRIGHT_BROWSERS)}"
+            )
+
 
 def _validate_entrypoint(entrypoint: Entrypoint, install_method: str, tool_name: str) -> None:
     has_command = entrypoint.command is not None
@@ -295,6 +308,13 @@ def _validate_input_types(input_types: dict[str, str] | None, tool_name: str) ->
             )
         if not isinstance(flag, str):
             raise RegistryError(f"tool '{tool_name}': input_types['{prefix}'] must be a string")
+        # A value can be several words, e.g. a subcommand and its flag
+        # ("harvest-emails --domain"); the input goes after the last one.
+        if flag and flag.split() != flag.split(" "):
+            raise RegistryError(
+                f"tool '{tool_name}': input_types['{prefix}'] must be words separated by "
+                "single spaces"
+            )
 
 
 def _validate_unknown_keys(data: dict, tool_name: str) -> None:
@@ -349,6 +369,7 @@ def parse_tool(data: dict) -> Tool:
         requirements=install_data.get("requirements"),
         as_package=install_data.get("as_package", False),
         extra_packages=tuple(install_data.get("extra_packages", [])),
+        playwright_browsers=tuple(install_data.get("playwright_browsers", [])),
     )
     _validate_install(install, tool_name)
 
