@@ -42,6 +42,7 @@ tools:
     method: pip
     package: ghunt
     version: 2.3.4
+  requires_python: '<3.14'
   entrypoint:
     command: ghunt
   smoke_args:

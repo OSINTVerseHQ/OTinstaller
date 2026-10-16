@@ -1,0 +1,45 @@
+Source: otinstaller
+Section: utils
+Priority: optional
+Maintainer: Sushant Koul <sushant@osintverse.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-sequence-python3,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-hatchling,
+ python3-click,
+ python3-pytest <!nocheck>,
+ python3-pytest-asyncio <!nocheck>,
+ python3-requests <!nocheck>,
+ python3-rich,
+ python3-sentry-sdk,
+ python3-typer (>= 0.20.0),
+ python3-yaml,
+ git <!nocheck>,
+Standards-Version: 4.7.2
+Homepage: https://github.com/OSINTVerseHQ/OTinstaller
+Vcs-Browser: https://github.com/OSINTVerseHQ/OTinstaller
+Vcs-Git: https://github.com/OSINTVerseHQ/OTinstaller.git
+Rules-Requires-Root: no
+
+Package: otinstaller
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ git,
+ python3-venv,
+Description: install, run and update OSINT command line tools by name
+ otinstaller manages open-source OSINT command line tools. It installs each
+ tool from a pinned, tested version into its own Python virtualenv under
+ ~/.otinstaller, runs it by name, turns typed inputs such as u:johndoe or
+ d:example.com into the tool's own flags, and saves every run's output with a
+ timestamp and a SHA-256 sidecar.
+ .
+ It covers about 50 tools for usernames, email addresses, phone numbers,
+ domains and URLs, and can run all installed tools that take one kind of
+ input at once. Nothing is installed system-wide and no root is needed.
+ .
+ The tools themselves are downloaded from PyPI and GitHub when you install
+ them. Crash reports are off unless the user turns them on.

@@ -1,0 +1,83 @@
+.TH OTINSTALLER 1 "October 2026" "otinstaller 0.1.0" "User Commands"
+.SH NAME
+otinstaller, ot \- install, run and update OSINT command line tools by name
+.SH SYNOPSIS
+.B otinstaller
+.I command
+.RI [ options ]
+.br
+.B otinstaller run
+.I tool
+.B \-\-
+.RI [ prefix : value ...]
+.RI [ tool\ arguments ...]
+.SH DESCRIPTION
+.B otinstaller
+installs open-source OSINT tools from pinned, tested versions, each into its
+own Python virtualenv under
+.IR ~/.otinstaller/tools ,
+and runs them by name. Typed inputs such as
+.B u:johndoe
+or
+.B d:example.com
+are turned into each tool's own flags. Every run's output is saved under
+.I ./results
+with a JSON sidecar holding the command, timing, exit code and SHA-256.
+.PP
+.B ot
+is a short alias for
+.BR otinstaller .
+.SH COMMANDS
+.TP
+.B init
+Create ~/.otinstaller, show the responsible-use notice and ask to accept it.
+Use \fB\-\-yes\fR in scripts.
+.TP
+.BI install " tool" ...
+Install tools. \fB\-\-all\fR installs every tool that needs no setup.
+.TP
+.BI run " tool " "\-\- " args
+Run a tool. \fB\-\-all\fR runs every installed tool that takes the given typed input.
+.TP
+.BI auto " target"
+Detect whether the target is an email, domain, URL or username and run the
+matching installed tools.
+.TP
+.B list\fR, \fBsearch\fR, \fBinfo\fR, \fBexample
+Browse the tool catalogue.
+.TP
+.B update\fR, \fBcheck\-updates
+Bring installed tools to the versions this release pins.
+.TP
+.B remove
+Remove tools.
+.TP
+.B playbook
+Run or list playbooks.
+.TP
+.B extract\fR, \fBdiff
+Pull indicators out of saved results, or compare two runs.
+.TP
+.B keys check
+Show which API keys in ~/.otinstaller/.env each tool can use.
+.TP
+.B crash\-reports \fR[\fBon\fR|\fBoff\fR]
+Show or change opt-in crash reports. They are off unless you turn them on.
+.TP
+.B doctor
+Check Python, git, venv and the home directory.
+.PP
+Run \fBotinstaller \fIcommand\fB \-\-help\fR for the options of each command.
+.SH ENVIRONMENT
+.TP
+.B OTINSTALLER_HOME
+Use another directory instead of ~/.otinstaller.
+.TP
+.B DO_NOT_TRACK\fR, \fBOTINSTALLER_CRASH_REPORTS=off
+Never send crash reports.
+.SH FILES
+.TP
+.I ~/.otinstaller/.env
+API keys, one KEY=value per line, mode 600.
+.SH SEE ALSO
+https://github.com/OSINTVerseHQ/OTinstaller

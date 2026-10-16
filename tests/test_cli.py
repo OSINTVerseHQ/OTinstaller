@@ -979,7 +979,7 @@ def test_doctor_python_version_problem(monkeypatch, tmp_path):
     """doctor exits 1 when Python version is not supported."""
     monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
     monkeypatch.setattr("sys.platform", "linux")
-    monkeypatch.setattr("sys.version_info", (3, 14, 0, "final", 0))
+    monkeypatch.setattr("sys.version_info", (3, 15, 0, "final", 0))
     monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/git" if x == "git" else None)
 
     def mock_run(*args, **kwargs):
@@ -992,8 +992,8 @@ def test_doctor_python_version_problem(monkeypatch, tmp_path):
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 1
-    assert "[problem] python 3.14 is not supported" in result.output
-    assert "this project targets 3.10-3.12" in result.output
+    assert "[problem] python 3.15 is not tested" in result.output
+    assert "this project supports 3.10-3.14" in result.output
 
 
 def test_doctor_flags_python_incompatible_tools(monkeypatch, tmp_path):
@@ -1031,9 +1031,9 @@ def test_doctor_flags_python_incompatible_tools(monkeypatch, tmp_path):
     monkeypatch.setattr("subprocess.run", mock_run)
 
     result = runner.invoke(app, ["doctor"])
-    assert result.exit_code == 1
-    assert "[problem] tools incompatible with python 3.14: oldtool" in result.output
-    assert "newtool" not in result.output.split("tools incompatible with python 3.14")[1]
+    assert result.exit_code == 0  # a note, not a problem with the machine
+    assert "[note] tools that need a different python than 3.14: oldtool" in result.output
+    assert "newtool" not in result.output.split("need a different python than 3.14")[1]
 
 
 def test_doctor_no_incompatible_tools_on_supported_python(monkeypatch, tmp_path):
@@ -1065,7 +1065,7 @@ def test_doctor_no_incompatible_tools_on_supported_python(monkeypatch, tmp_path)
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
-    assert "tools incompatible" not in result.output
+    assert "need a different python" not in result.output
 
 
 def test_doctor_git_missing_debian(monkeypatch, tmp_path):

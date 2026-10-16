@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME=otinstaller
+# The network tests install real tools; never run them during a package build
+export RUN_NETWORK_TESTS=0
+export DO_NOT_TRACK=1
+
+%:
+	dh $@ --buildsystem=pybuild
+
+# The tests read README.md and the registry from the source tree, so run them there
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	HOME=$$(mktemp -d) PYTHONPATH=$(CURDIR)/src python3 -m pytest -q -p no:cacheprovider tests
+endif

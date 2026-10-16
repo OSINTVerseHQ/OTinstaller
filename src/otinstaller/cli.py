@@ -15,7 +15,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 
-from otinstaller import __version__
+from otinstaller import __version__, crash_reports
 from otinstaller.banner import banner_enabled, render_banner
 from otinstaller.compat import incompatibility
 from otinstaller.config import (
@@ -678,6 +678,7 @@ def _require_notice(no_color: bool = False, json_output: bool = False) -> None:
         raise typer.Exit(code=1)
     record_acceptance()
     _ensure_env_file()
+    crash_reports.ask(_make_console(no_color).print, typer.prompt)
 
 
 @app.command(name="install")
@@ -2215,6 +2216,10 @@ def init(
 
     env_file, env_created = _ensure_env_file(json_output)
 
+    # Crash reports stay off unless someone at a terminal says yes
+    if not yes and not json_output and sys.stdin.isatty() and sys.stdout.isatty():
+        crash_reports.ask(_make_console(no_color).print, typer.prompt)
+
     if json_output:
         import json
 
@@ -2676,7 +2681,7 @@ def doctor(
 
     # 3. Python version
     major, minor = sys.version_info[:2]
-    if major == 3 and 10 <= minor <= 12:
+    if major == 3 and 10 <= minor <= 14:
         checks.append(
             {
                 "check": "python_version",
@@ -2690,7 +2695,7 @@ def doctor(
                 "check": "python_version",
                 "status": "problem",
                 "message": (
-                    f"python {major}.{minor} is not supported, this project targets 3.10-3.12"
+                    f"python {major}.{minor} is not tested, this project supports 3.10-3.14"
                 ),
             }
         )
@@ -2763,6 +2768,15 @@ def doctor(
         )
         problems += 1
 
+    # Crash reports are information, never a problem
+    checks.append(
+        {
+            "check": "crash_reports",
+            "status": "ok",
+            "message": f"crash reports {crash_reports.status()[1]}",
+        }
+    )
+
     # 7. Registered tools whose requires_python excludes the running Python
     try:
         incompatible_tools = sorted(
@@ -2777,14 +2791,14 @@ def doctor(
         checks.append(
             {
                 "check": "tool_python_compat",
-                "status": "problem",
+                # Not a problem with this machine: those tools say which Python they need
+                "status": "note",
                 "message": (
-                    f"tools incompatible with python {major}.{minor}: "
+                    f"tools that need a different python than {major}.{minor}: "
                     f"{', '.join(incompatible_tools)}"
                 ),
             }
         )
-        problems += 1
 
     if json_output:
         import json
@@ -2796,7 +2810,7 @@ def doctor(
 
     # Human-readable output
     for check in checks:
-        prefix = "[ok]" if check["status"] == "ok" else "[problem]"
+        prefix = {"ok": "[ok]", "note": "[note]"}.get(check["status"], "[problem]")
         typer.echo(f"{prefix} {check['message']}")
 
     # Early exit for non-Linux when not verbose (matches original behavior)
@@ -2805,3 +2819,48 @@ def doctor(
 
     if problems > 0:
         raise typer.Exit(code=1)
+
+
+@app.command(name="crash-reports")
+def crash_reports_command(
+    state: Annotated[
+        str | None,
+        typer.Argument(help="on, off, or test; leave out to show the current setting"),
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+):
+    """Turn opt-in crash reports on or off (off unless you say yes)."""
+    if state is not None:
+        value = state.strip().lower()
+        if value == "test":
+            if not crash_reports.is_enabled():
+                typer.echo("error: crash reports are off; turn them on first", err=True)
+                raise typer.Exit(code=1)
+            crash_reports.report(RuntimeError("test report from otinstaller crash-reports test"))
+            typer.echo("sent a test crash report")
+            return
+        if value not in ("on", "off"):
+            typer.echo("error: use 'on', 'off' or 'test'", err=True)
+            raise typer.Exit(code=2)
+        crash_reports.set_enabled(value == "on")
+    enabled, reason = crash_reports.status()
+    if json_output:
+        typer.echo(json.dumps({"enabled": enabled, "status": reason}))
+        return
+    typer.echo(f"crash reports {reason}")
+    if state is None and not enabled:
+        typer.echo("turn on with: otinstaller crash-reports on")
+
+
+def run_cli() -> None:
+    """Console entry point. If otinstaller itself crashes, send an opt-in crash report."""
+    try:
+        app()
+    except Exception as exc:
+        try:
+            names = set(typer.main.get_command(app).commands)  # type: ignore[attr-defined]
+        except Exception:
+            names = set()
+        name = crash_reports.command_name()
+        crash_reports.report(exc, name if name in names else None)
+        raise
