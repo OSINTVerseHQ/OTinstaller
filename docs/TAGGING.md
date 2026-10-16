@@ -203,8 +203,8 @@ regenerate the registry.
 ### mailaccess
 - **Capabilities**: email-search, breach-search, dual-use
 - **Topics**: email, breach
-- **Accepts**: email
-- **Reasoning**: searches by email/breach data; queries breach databases; dual-use: sensitive personal data lookups
+- **Accepts**: email, domain
+- **Reasoning**: searches by email/breach data; queries breach databases; harvests the email addresses of a domain; dual-use: sensitive personal data lookups
 
 ### secator
 - **Capabilities**: domain-recon, subdomain-enum, ip-recon, username-search, email-search, breach-search, google-recon, dual-use
