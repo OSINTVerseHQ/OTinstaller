@@ -424,3 +424,70 @@ def test_remove_tool_clears_row_when_dir_already_gone(monkeypatch, tmp_path):
     result = remove_tool("testtool")
     assert result is True
     assert get_installed("testtool") is None
+
+
+def test_playwright_browsers_install_into_the_tool_folder(monkeypatch, tmp_path):
+    """A tool with playwright_browsers gets Chromium's headless shell in its own folder."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    tool = replace(
+        make_tool_pip("testtool", "testpkg", "1.0"),
+        install=Install(
+            method="pip", package="testpkg", version="1.0", playwright_browsers=("chromium",)
+        ),
+    )
+
+    with patch("otinstaller.installer.pip_install.run"):
+        with patch("otinstaller.installer.browsers.run") as browser_run:
+            with patch("otinstaller.installer.venv.create_venv"):
+                with patch("otinstaller.installer.core._get_version_pip", return_value="1.0"):
+                    with _mock_entrypoint_check():
+                        install_tool(tool)
+
+    browser_run.assert_called_once()
+    args = browser_run.call_args[0][0]
+    root = get_tools_dir() / "testtool"
+    assert args == [
+        str(root / "venv" / "bin" / "python"),
+        "-m",
+        "playwright",
+        "install",
+        "--only-shell",
+        "chromium",
+    ]
+    env = browser_run.call_args.kwargs["env"]
+    assert env == {"PLAYWRIGHT_BROWSERS_PATH": str(root / "playwright-browsers")}
+
+
+def test_no_browser_download_without_playwright_browsers(monkeypatch, tmp_path):
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    tool = make_tool_pip("testtool", "testpkg", "1.0")
+
+    with patch("otinstaller.installer.pip_install.run"):
+        with patch("otinstaller.installer.browsers.run") as browser_run:
+            with patch("otinstaller.installer.venv.create_venv"):
+                with patch("otinstaller.installer.core._get_version_pip", return_value="1.0"):
+                    with _mock_entrypoint_check():
+                        install_tool(tool)
+
+    browser_run.assert_not_called()
+
+
+def test_failed_browser_download_fails_the_install(monkeypatch, tmp_path):
+    """If the browser can't be downloaded, the install fails and leaves nothing behind."""
+    monkeypatch.setenv("OTINSTALLER_HOME", str(tmp_path))
+    tool = replace(
+        make_tool_pip("testtool", "testpkg", "1.0"),
+        install=Install(method="pip", package="testpkg", playwright_browsers=("chromium",)),
+    )
+
+    with patch("otinstaller.installer.pip_install.run"):
+        with patch(
+            "otinstaller.installer.browsers.run", side_effect=InstallError("download failed")
+        ):
+            with patch("otinstaller.installer.venv.create_venv"):
+                with _mock_entrypoint_check():
+                    with pytest.raises(InstallError):
+                        install_tool(tool)
+
+    assert not (get_tools_dir() / "testtool").exists()
+    assert get_installed("testtool") is None
