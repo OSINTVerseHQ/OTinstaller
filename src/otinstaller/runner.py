@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from otinstaller.config import get_results_dir
+from otinstaller.installer.browsers import tool_env
 from otinstaller.installer.venv import venv_bin, venv_python
 from otinstaller.keys import keys_for_tool, load_env_file, missing_required_keys
 from otinstaller.registry import Tool
@@ -213,6 +214,7 @@ def run_tool(
 
     # Prepare environment
     env = os.environ.copy()
+    env.update(tool_env(tool, root))
     if env_overrides:
         env.update(env_overrides)
 
