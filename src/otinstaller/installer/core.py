@@ -190,6 +190,11 @@ def install_tool(
         else:
             raise InstallError(f"unknown install method: {tool.install.method}")
 
+        if tool.install.playwright_browsers:
+            from otinstaller.installer.browsers import install_browsers
+
+            install_browsers(tool, root, log, stream=stream)
+
         # Verify entrypoint
         from otinstaller.installer.venv import venv_bin
 
