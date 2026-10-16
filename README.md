@@ -201,6 +201,13 @@ otinstaller run holehe -- e:john@example.com
 otinstaller run dnstwist -- d:example.com
 ```
 
+A tool can do something different for each input. MailAccess investigates an email address with `e:` and harvests the email addresses of a domain with `d:`:
+
+```bash
+otinstaller run mailaccess -- e:john@example.com
+otinstaller run mailaccess -- d:example.com
+```
+
 Each tool declares which input types it supports. Run `otinstaller info <tool>` to see its mapping. Plain arguments after `--` are always passed to the tool unchanged, so every flag of the original tool still works.
 
 ## Run every matching tool
@@ -289,7 +296,7 @@ Tools tagged `dual-use` in the registry print a notice and ask for confirmation 
 ## Tool catalogue
 
 <!-- tool-catalogue:start -->
-The registry ships **47 tools**. By what they accept: 24 username, 14 email, 4 phone, 18 domain, 7 ip address, 11 url, 5 name.
+The registry ships **47 tools**. By what they accept: 24 username, 14 email, 4 phone, 19 domain, 7 ip address, 11 url, 5 name.
 A tool that accepts several input types is listed under the first one.
 
 <details>
@@ -323,7 +330,7 @@ A tool that accepts several input types is listed under the first one.
 | [Ghunt](https://github.com/mxrch/GHunt) ([docs](https://osintverse.gitbook.io/otinstaller/tools/ghunt)) | Offensive Google framework | `e:` | needs a login or API key |
 | [H8Mail](https://github.com/khast3x/h8mail) ([docs](https://osintverse.gitbook.io/otinstaller/tools/h8mail)) | Email OSINT & Password breach hunting tool, locally or using premium services | `e:` |  |
 | [Holehe](https://github.com/megadose/holehe) ([docs](https://osintverse.gitbook.io/otinstaller/tools/holehe)) | holehe allows you to check if the mail is used on different sites like twitter, instagram and will... | `e:` |  |
-| [Mailaccess](https://github.com/KatrielMoses/MailAccess) ([docs](https://osintverse.gitbook.io/otinstaller/tools/mailaccess)) | Free email OSINT tool, 2500+ platforms, identity clustering, breach detection | `e:` |  |
+| [Mailaccess](https://github.com/KatrielMoses/MailAccess) ([docs](https://osintverse.gitbook.io/otinstaller/tools/mailaccess)) | Investigates an email address across 5,300+ platforms and breach sources, and harvests the email addresses... | `e:` `d:` |  |
 | [NeutrOSINT](https://github.com/Kr0wZ/NeutrOSINT) ([docs](https://osintverse.gitbook.io/otinstaller/tools/neutrosint)) | Check if an email address or username exists on ProtonMail | `e:` |  |
 
 </details>
