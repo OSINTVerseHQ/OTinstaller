@@ -996,15 +996,20 @@ tools:
     u: ''
 - name: mailaccess
   display_name: Mailaccess
-  description: 'Free email OSINT tool, 2500+ platforms, identity clustering, breach detection. BROKEN: crashes on --help (missing greenlet dependency), has placeholder URLs, unknown license.'
+  description: Investigates an email address across 5,300+ platforms and breach sources, and harvests the email addresses of a domain
   repo: KatrielMoses/MailAccess
-  license: unknown
+  license: MIT
   stars: 1449
   tier: community
   install:
     method: pip
     package: mailaccess
-    version: 0.18.6
+    version: 0.18.7
+    extra_packages:
+    - mailaccess[browser]==0.18.7
+    - playwright>=1.49
+    playwright_browsers:
+    - chromium
   entrypoint:
     command: mailaccess
   smoke_args:
@@ -1020,17 +1025,18 @@ tools:
     required: []
     optional: []
   verified:
-    date: '2026-10-13'
-    version: 0.18.6
+    date: '2026-10-16'
+    version: 0.18.7
     os: Ubuntu 24.04.5 LTS
-    python: 3.12.3
+    python: 3.12.13
   accepts:
   - email
+  - domain
   default_args:
   - --no-banner
-  - investigate
   input_types:
-    e: ''
+    e: investigate
+    d: harvest-emails --domain
 - name: secator
   display_name: Secator
   description: secator - the pentester's swiss knife.
