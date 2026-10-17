@@ -15,6 +15,10 @@ from otinstaller.config import get_results_dir
 from otinstaller.registry import Tool
 
 
+class ResultsDirError(Exception):
+    """The results folder can't be created (no write access, a file in the way, ...)."""
+
+
 def sanitize_component(value: str) -> str:
     """Sanitize a path component for safe filesystem use."""
     # Lowercase
@@ -60,7 +64,15 @@ def results_paths(
     filename = f"{timestamp}_{tool_name}_{target_sanitized}_{runid}.{ext}"
     output_path = base / tool_name / target_sanitized / filename
     meta_path = output_path.with_suffix(".meta.json")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        reason = exc.strerror or exc.__class__.__name__
+        raise ResultsDirError(
+            f"can't save results in {get_results_dir()} ({reason.lower()}). "
+            "Run otinstaller from a folder you can write to, such as your home folder, "
+            "or choose one with: export OTINSTALLER_RESULTS_DIR=~/otinstaller-results"
+        ) from exc
     return output_path, meta_path
 
 

@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `install --verbose` reported a tool as installed even when a step failed (spiderfoot's requirements on Python 3.13, for example). A failed step now stops the install, as it does without `--verbose`
 - On Python 3.10 with the pip that venv bundles, packages without a `pyproject.toml` (ivre) were installed with a `#!python` first line, so their command couldn't start. Upgrading pip first fixes it
 - `run` crashed with a traceback when a tool's command was missing. It now exits 127 and says to reinstall with `--force`
+- `run` crashed with a traceback when it couldn't create `./results` (run from a folder without write access, such as `/`). It now says so and how to pick another folder with `OTINSTALLER_RESULTS_DIR`. Found through a Sentry crash report
 - Python version limits for tools that can't install or start outside them: GHunt needs 3.13 or older (its pinned Pillow 10 has no wheels for 3.14), theHarvester needs 3.12+ (its current release requires it), whatsapp-osint needs 3.11+ (it imports `datetime.UTC`), spiderfoot needs 3.12 or older (its pinned lxml and cryptography have no wheels for 3.13). otinstaller now says so before installing, instead of failing in pip
 - dnsgen no longer claims a `d:` input. It reads a file of domains, so `d:example.com` failed; run it as `otinstaller run dnsgen -- domains.txt`
 - edgar-tool's `d:` input passed the domain as a subcommand name, which edgar rejects. `q:` (a text search) is unchanged
