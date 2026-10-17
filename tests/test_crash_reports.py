@@ -247,3 +247,29 @@ def test_crash_reports_test_command(monkeypatch):
     result = runner.invoke(app, ["crash-reports", "test"])
     assert result.exit_code == 0
     assert sent and "test report" in sent[0]
+
+
+def test_unwritable_results_folder_is_an_error_not_a_crash(monkeypatch, tmp_path, capsys):
+    """Running where ./results can't be created prints what to do and is not reported."""
+    import otinstaller.cli as cli
+    from otinstaller.results import ResultsDirError, results_paths
+
+    blocker = tmp_path / "not-a-folder"
+    blocker.write_text("x")
+    monkeypatch.setenv("OTINSTALLER_RESULTS_DIR", str(blocker))
+    with pytest.raises(ResultsDirError) as err:
+        results_paths("sherlock", "johndoe", None)
+    assert "OTINSTALLER_RESULTS_DIR" in str(err.value)
+
+    reported = []
+    monkeypatch.setattr(crash_reports, "report", lambda exc, cmd=None: reported.append(exc))
+
+    def boom():
+        results_paths("sherlock", "johndoe", None)
+
+    monkeypatch.setattr(cli, "app", boom)
+    with pytest.raises(SystemExit) as exit_info:
+        cli.run_cli()
+    assert exit_info.value.code == 1
+    assert not reported
+    assert "can't save results in" in capsys.readouterr().err
