@@ -131,11 +131,14 @@ def _frame_path(path: str | None) -> str | None:
     """Keep only the part of a source path inside a package (otinstaller/cli.py)."""
     if not path:
         return path
-    parts = Path(path).parts
+    # sentry-sdk already gives a path relative to the package (otinstaller/cli.py)
+    if not path.startswith(("/", "~", "\\")) and ":" not in path and ".." not in path:
+        return path
+    parts = [p for p in re.split(r"[\\/]", path) if p]
     for marker in ("site-packages", "dist-packages", "src"):
         if marker in parts:
             return "/".join(parts[parts.index(marker) + 1 :])
-    return Path(path).name
+    return parts[-1] if parts else None
 
 
 def scrub_event(event: dict, hint: dict | None = None) -> dict | None:
@@ -158,23 +161,24 @@ def scrub_event(event: dict, hint: dict | None = None) -> dict | None:
     for exc in (event.get("exception") or {}).get("values") or []:
         frames = []
         for fr in (exc.get("stacktrace") or {}).get("frames") or []:
-            frames.append(
-                {
-                    "filename": _frame_path(fr.get("filename") or fr.get("abs_path")),
-                    "module": fr.get("module"),
-                    "function": fr.get("function"),
-                    "lineno": fr.get("lineno"),
-                    "in_app": fr.get("in_app"),
-                }
-            )
-        values.append(
-            {
-                "type": exc.get("type"),
-                "module": exc.get("module"),
-                "value": scrub_text(exc.get("value") or ""),
-                "stacktrace": {"frames": frames},
+            frame = {
+                "filename": _frame_path(fr.get("filename") or fr.get("abs_path")),
+                "module": fr.get("module"),
+                "function": fr.get("function"),
+                "lineno": fr.get("lineno"),
+                "in_app": fr.get("in_app"),
             }
-        )
+            frames.append({k: v for k, v in frame.items() if v is not None})
+        value = {
+            "type": exc.get("type"),
+            "module": exc.get("module"),
+            "value": scrub_text(exc.get("value") or ""),
+        }
+        value = {k: v for k, v in value.items() if v is not None}
+        # Sentry rejects an empty frame list ("processing error"), so leave it out
+        if frames:
+            value["stacktrace"] = {"frames": frames}
+        values.append(value)
     if not values:
         return None  # only exceptions are ever sent
     clean["exception"] = {"values": values}
