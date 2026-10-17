@@ -932,3 +932,82 @@ def test_registry_contract_installed_tools_accept_input_types(tmp_path):
                     f"{tool.name} ({flag} {dummy}): exited with code 2, output: {output[:500]}"
                 )
     assert checked, "no installed tool has a typed input to check"
+
+
+def _pip_tool_data(**install_extra):
+    return {
+        "name": "piptool",
+        "display_name": "Pip tool",
+        "description": "Pip tool",
+        "install": {"method": "pip", "package": "piptool", **install_extra},
+        "entrypoint": {"command": "piptool"},
+    }
+
+
+def test_playwright_browsers_parsed():
+    from otinstaller.registry import parse_tool
+
+    tool = parse_tool(_pip_tool_data(playwright_browsers=["chromium"]))
+    assert tool.install.playwright_browsers == ("chromium",)
+    assert parse_tool(_pip_tool_data()).install.playwright_browsers == ()
+
+
+@pytest.mark.parametrize("browser", ["firefox", "--with-deps", "chromium; rm -rf /", ""])
+def test_playwright_browsers_reject_unknown(browser):
+    from otinstaller.registry import RegistryError, parse_tool
+
+    with pytest.raises(RegistryError):
+        parse_tool(_pip_tool_data(playwright_browsers=[browser]))
+
+
+def test_input_types_can_be_a_subcommand_and_flag():
+    from otinstaller.cli import _build_tool_args
+    from otinstaller.registry import parse_tool
+
+    data = _pip_tool_data()
+    data["default_args"] = ["--no-banner"]
+    data["input_types"] = {"e": "investigate", "d": "harvest-emails --domain"}
+    tool = parse_tool(data)
+    assert _build_tool_args(tool, {"d": "example.com"}) == [
+        "--no-banner",
+        "harvest-emails",
+        "--domain",
+        "example.com",
+    ]
+    assert _build_tool_args(tool, {"e": "a@example.com"}) == [
+        "--no-banner",
+        "investigate",
+        "a@example.com",
+    ]
+
+
+@pytest.mark.parametrize("flag", ["harvest  --domain", " --domain", "--domain ", "a\t--b"])
+def test_input_types_reject_odd_spacing(flag):
+    from otinstaller.registry import RegistryError, parse_tool
+
+    data = _pip_tool_data()
+    data["input_types"] = {"d": flag}
+    with pytest.raises(RegistryError):
+        parse_tool(data)
+
+
+def test_bundled_registry_mailaccess_investigates_and_harvests():
+    from otinstaller.cli import _build_tool_args
+    from otinstaller.registry import load_registry
+
+    path = Path(__file__).parent.parent / "src" / "otinstaller" / "data" / "registry.yaml"
+    tool = {t.name: t for t in load_registry(path)}["mailaccess"]
+    assert tool.install.playwright_browsers == ("chromium",)
+    assert f"mailaccess[browser]=={tool.install.version}" in tool.install.extra_packages
+    assert _build_tool_args(tool, {"e": "a@example.com"}) == [
+        "--no-banner",
+        "investigate",
+        "a@example.com",
+    ]
+    assert _build_tool_args(tool, {"d": "example.com"}) == [
+        "--no-banner",
+        "harvest-emails",
+        "--domain",
+        "example.com",
+    ]
+    assert set(tool.accepts) == {"email", "domain"}

@@ -772,3 +772,43 @@ def test_run_tool_reports_missing_command_without_traceback(monkeypatch, tmp_pat
     err = capsys.readouterr().err
     assert "could not start" in err
     assert "otinstaller install ghosttool --force" in err
+
+
+def test_run_tool_points_playwright_at_the_tool_browsers(tmp_path, monkeypatch):
+    """A tool with its own Playwright browser finds it even when the user set another path."""
+    from dataclasses import replace
+
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", "/somewhere/else")
+    tool = make_fake_tool("browsertool")
+    tool = replace(
+        tool,
+        install=Install(method="pip", package="browsertool", playwright_browsers=("chromium",)),
+    )
+    root = tmp_path / "browsertool"
+    root.mkdir(parents=True)
+
+    with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline = MagicMock(side_effect=[b""])
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+        run_tool(tool, root, [], target="t", case=None, env_overrides=None, stream=False)
+
+    env = mock_popen.call_args.kwargs["env"]
+    assert env["PLAYWRIGHT_BROWSERS_PATH"] == str(root / "playwright-browsers")
+
+
+def test_run_tool_leaves_playwright_path_alone_for_other_tools(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", "/user/choice")
+    tool = make_fake_tool("plaintool")
+    root = tmp_path / "plaintool"
+    root.mkdir(parents=True)
+
+    with patch("otinstaller.runner.subprocess.Popen") as mock_popen:
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline = MagicMock(side_effect=[b""])
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+        run_tool(tool, root, [], target="t", case=None, env_overrides=None, stream=False)
+
+    assert mock_popen.call_args.kwargs["env"]["PLAYWRIGHT_BROWSERS_PATH"] == "/user/choice"

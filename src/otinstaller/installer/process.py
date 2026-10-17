@@ -29,6 +29,7 @@ def _run_with_cleanup(
     cwd: Path | None = None,
     timeout: int = 900,
     stream: bool = False,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess:
     """Run a command with proper cleanup on KeyboardInterrupt.
 
@@ -39,7 +40,10 @@ def _run_with_cleanup(
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8", errors="replace") as f:
         f.write(f"$ {cmd_str}\n")
+    extra_env = env
     env = _base_env()
+    if extra_env:
+        env.update(extra_env)
 
     # Use Popen with start_new_session to create a new process group
     proc = subprocess.Popen(
@@ -86,9 +90,10 @@ def run(
     cwd: Path | None = None,
     timeout: int = 900,
     stream: bool = False,
+    env: dict[str, str] | None = None,
 ) -> None:
-    """Run a command, logging output to a file."""
-    result = _run_with_cleanup(args, log=log, cwd=cwd, timeout=timeout, stream=stream)
+    """Run a command, logging output to a file. env adds to the usual environment."""
+    result = _run_with_cleanup(args, log=log, cwd=cwd, timeout=timeout, stream=stream, env=env)
     with log.open("a", encoding="utf-8", errors="replace") as f:
         f.write(result.stdout or "")
         f.write(result.stderr or "")

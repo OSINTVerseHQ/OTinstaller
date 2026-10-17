@@ -98,3 +98,31 @@ jobs:
           otinstaller doctor || true
           otinstaller install sherlock -y
           otinstaller run sherlock -- --version
+
+  test-browser-tool:
+    # MailAccess downloads Chromium's headless shell into its own folder at install.
+    # Check the download works and that MailAccess's browser checks run with it.
+    runs-on: ubuntu-24.04
+    env:
+      DO_NOT_TRACK: "1"
+      MAILACCESS_NO_UPDATE_CHECK: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install otinstaller
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install .
+      - name: Install MailAccess and its browser
+        run: |
+          .venv/bin/otinstaller init --yes
+          .venv/bin/otinstaller install mailaccess -y
+          ls ~/.otinstaller/tools/mailaccess/playwright-browsers
+      - name: Browser checks run instead of being skipped
+        run: |
+          .venv/bin/otinstaller run mailaccess -- investigate test@example.com --modules browser_account_probe
+          cat results/mailaccess/*/*.txt
+          grep -q "browser_account_probe" results/mailaccess/*/*.txt
+          ! grep -E "browser_account_probe +SKIPPED" results/mailaccess/*/*.txt

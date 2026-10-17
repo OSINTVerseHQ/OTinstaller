@@ -3658,6 +3658,25 @@ def test_pick_target_skips_flags_in_plain_args():
     assert _pick_target(None, {}, ["user123"]) == "user123"
 
 
+def test_pick_target_skips_subcommands_of_typed_inputs():
+    from otinstaller.cli import _pick_target, _subcommand_words
+    from otinstaller.registry import Entrypoint, Install, Tool
+
+    tool = Tool(
+        name="mailtool",
+        display_name="Mail tool",
+        description="Mail tool",
+        install=Install(method="pip", package="mailtool"),
+        entrypoint=Entrypoint(command="mailtool"),
+        input_types={"e": "investigate", "d": "harvest-emails --domain"},
+    )
+    words = _subcommand_words([tool])
+    assert words == {"investigate", "harvest-emails"}
+    assert _pick_target(None, {}, ["investigate", "a@example.com"], words) == "a@example.com"
+    assert _pick_target(None, {}, ["harvest-emails", "--domain", "acme.com"], words) == "acme.com"
+    assert _pick_target(None, {}, ["investigate"], words) == "investigate"
+
+
 def test_pick_target_falls_back_to_first_arg_then_unspecified():
     from otinstaller.cli import _pick_target
 

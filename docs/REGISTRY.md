@@ -29,7 +29,7 @@ The source of truth is `src/otinstaller/data/registry.yaml` (packaged with the w
 | example | string | no | Relative path to sample output file |
 | verified | object | no | Verification info, see below |
 | accepts | list[string] | no | Target types this tool accepts (see below) |
-| input_types | map | no | Typed input prefix to the tool's flag, e.g. `u: --username`. An empty string passes the value as a positional argument; a word such as `email` passes it after that subcommand |
+| input_types | map | no | Typed input prefix to the tool's flag, e.g. `u: --username`. An empty string passes the value as a positional argument; a word such as `email` passes it after that subcommand; several words separated by single spaces, such as `harvest-emails --domain`, are all placed before the value |
 | default_args | list[string] | no | Arguments always placed before the user's arguments |
 | long_running | boolean | no | Tool monitors until stopped; left out of `--all` and `auto` |
 | run_from_source | boolean | no | Git tools only. Run from the tool's checkout instead of the current directory, for scripts that read data files by relative path (default: false) |
@@ -64,6 +64,7 @@ Validation:
 - `package` required, regex `^[A-Za-z0-9][A-Za-z0-9._-]*$`
 - `version` optional, regex `^[0-9A-Za-z.!+-]+$`
 - `extra_packages` optional list of pip specs installed after the package, e.g. `dnstwist[full]==20250130` to pull in a package's extras
+- `playwright_browsers` optional list of Playwright browsers to download after install; only `chromium` is allowed (see below)
 - `url`, `ref`, `requirements`, `as_package` must not be set
 
 ### Git method
@@ -82,6 +83,16 @@ Validation:
 - Exactly one of `requirements` or `as_package: true` required
 - `requirements` must be relative path, no `..`
 - `package` and `version` must not be set
+
+### Playwright browsers
+
+Some tools drive a headless browser with Playwright. `playwright_browsers: [chromium]`
+(either install method) runs `python -m playwright install --only-shell chromium` with the
+tool's own Playwright after the install. The browser goes into the tool's folder
+(`~/.otinstaller/tools/<name>/playwright-browsers`), not the shared Playwright cache, so
+`remove` deletes it too, and `run` sets `PLAYWRIGHT_BROWSERS_PATH` to that folder for the
+tool. If the download fails, the install fails. Playwright itself must be in the venv, for
+example through `extra_packages: ["tool[browser]==1.0"]`.
 
 ## Entrypoint object
 
