@@ -2855,7 +2855,11 @@ def crash_reports_command(
             if not crash_reports.is_enabled():
                 typer.echo("error: crash reports are off; turn them on first", err=True)
                 raise typer.Exit(code=1)
-            crash_reports.report(RuntimeError("test report from otinstaller crash-reports test"))
+            # Raised and caught, so the report has a stack trace like a real crash
+            try:
+                raise RuntimeError("test report from otinstaller crash-reports test")
+            except RuntimeError as exc:
+                crash_reports.report(exc, "crash-reports")
             typer.echo("sent a test crash report")
             return
         if value not in ("on", "off"):
