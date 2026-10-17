@@ -53,7 +53,7 @@ from otinstaller.registry import (
     search_tools,
     suggest_names,
 )
-from otinstaller.results import RunMeta, results_paths, write_meta
+from otinstaller.results import ResultsDirError, RunMeta, results_paths, write_meta
 from otinstaller.runner import is_secret_flag, run_tool, run_tools_parallel
 from otinstaller.state import get_installed, list_installed
 
@@ -2879,6 +2879,10 @@ def run_cli() -> None:
     """Console entry point. If otinstaller itself crashes, send an opt-in crash report."""
     try:
         app()
+    except ResultsDirError as exc:
+        # A problem with the user's folder, not a bug: say what to do, no traceback
+        typer.echo(f"error: {exc}", err=True)
+        raise SystemExit(1) from None
     except Exception as exc:
         try:
             names = set(typer.main.get_command(app).commands)  # type: ignore[attr-defined]
