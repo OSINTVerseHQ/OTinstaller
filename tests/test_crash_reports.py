@@ -153,6 +153,44 @@ def test_report_sends_a_scrubbed_event(monkeypatch):
         sentry_sdk.get_client().close()
 
 
+def test_scrub_event_leaves_out_empty_stack_traces():
+    """An exception that was never raised has no frames; Sentry rejects "frames": []."""
+    event = {
+        "event_id": "a" * 32,
+        "exception": {"values": [{"type": "RuntimeError", "value": "x", "module": None}]},
+    }
+    value = crash_reports.scrub_event(event)["exception"]["values"][0]
+    assert "stacktrace" not in value
+    assert "module" not in value
+    assert value["type"] == "RuntimeError"
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("otinstaller/cli.py", "otinstaller/cli.py"),
+        ("/home/alice/.local/lib/python3.12/site-packages/otinstaller/a.py", "otinstaller/a.py"),
+        ("/home/alice/work/run.py", "run.py"),
+        ("../../home/alice/x.py", "x.py"),
+        ("C:\\Users\\alice\\x.py", "x.py"),
+    ],
+)
+def test_frame_paths_never_keep_the_user_folder(path, expected):
+    got = crash_reports._frame_path(path)
+    assert got == expected
+    assert "alice" not in got
+
+
+def test_crash_reports_test_sends_a_stack_trace(monkeypatch):
+    """The test report is raised and caught, so Sentry gets a real stack trace."""
+    got = []
+    monkeypatch.setattr(crash_reports, "report", lambda exc, cmd=None: got.append(exc))
+    crash_reports.set_enabled(True)
+    result = runner.invoke(app, ["crash-reports", "test"])
+    assert result.exit_code == 0
+    assert got and got[0].__traceback__ is not None
+
+
 def test_main_reports_crashes_but_not_normal_exits(monkeypatch):
     import otinstaller.cli as cli
 
